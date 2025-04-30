@@ -8,18 +8,21 @@ import sys
 
 N_PAIRS = 25
 
-# Load embeddings and labels 
-embd_dir  = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/try_with_new_config/embeddings/neurons/batch9"
-wt_untreated = np.load(os.path.join(embd_dir, "wt_untreated_embedding.npy"))
-wt_untreated_labels = pd.read_csv(os.path.join(embd_dir, "wt_untreated_labels.csv"))
-wt_stress = np.load(os.path.join(embd_dir, "wt_stress_embedding.npy"))
-wt_stress_labels = pd.read_csv(os.path.join(embd_dir, "wt_stress_labels.csv"))
+# Load embeddings  labels and paths
+embd_dir  = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_and_paths/RotationDatasetConfig"
+wt_untreated = np.load(os.path.join(embd_dir, "grouped_embeddings", "wt_untreated_embedding.npy"))
+wt_untreated_labels = pd.read_csv(os.path.join(embd_dir, "grouped_embeddings", "wt_untreated_labels.csv"))
+wt_untreated_paths = pd.read_csv(os.path.join(embd_dir, "grouped_embeddings", "wt_untreated_paths.csv"))
+wt_stress = np.load(os.path.join(embd_dir, "grouped_embeddings", "wt_stress_embedding.npy"))
+wt_stress_labels = pd.read_csv(os.path.join(embd_dir, "grouped_embeddings", "wt_stress_labels.csv"))
+wt_stress_paths = pd.read_csv(os.path.join(embd_dir, "grouped_embeddings", "wt_stress_paths.csv"))
 
-output_dir = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/try_with_new_config/pairs_embedding"
+output_dir = os.path.join(embd_dir, "pairs")
+os.makedirs(output_dir, exist_ok=True)
 
 # Compute all pairwise distances between untreated and stress
 distances = cdist(wt_untreated, wt_stress, metric='cosine')  # shape: (n_untreated [1475], n_stress [1343])
-um_untreated, num_stress = distances.shape
+num_untreated, num_stress = distances.shape
 flattened_distances = distances.flatten() # flatten to shape: (n_untreated X n_stress)
 
 # get min/max/middle dist pairs
@@ -35,16 +38,22 @@ all_pairs = min_pairs + middle_pairs + max_pairs
 untreated_indices = list(set([i for (i, j) in all_pairs]))
 stress_indices = list(set([j for (i, j) in all_pairs]))
 print(f"Selected {len(untreated_indices)} untreated samples and {len(stress_indices)} stress samples.")
+
+
 # save distances
 distances_df = pd.DataFrame(all_pairs, columns=["i_untreated", "j_stress"])
 distances_df["cosine_distance"] = [distances[i, j] for (i, j) in all_pairs]
+distances_df["path_untreated"] = [wt_untreated_paths.iloc[i]["full_path"] for (i, j) in all_pairs] 
+distances_df["path_stress"] = [wt_stress_paths.iloc[j]["full_path"] for (i, j) in all_pairs] 
 distances_df.to_csv(os.path.join(output_dir, "testsets_distances.csv"), index=False)
 
-# extract embeding values and labels
+# extract embeding,labels and paths values
 filtered_untreated_embeddings = wt_untreated[untreated_indices]
 filtered_stress_embeddings = wt_stress[stress_indices]
 filtered_untreated_labels = wt_untreated_labels.iloc[untreated_indices]
 filtered_stress_labels = wt_stress_labels.iloc[stress_indices]
+filtered_untreated_paths = wt_untreated_labels.iloc[untreated_indices]
+filtered_stress_paths = wt_stress_labels.iloc[stress_indices]
 
 # save all together as nyp 
 # Concatenate embeddings and labels correspondly 

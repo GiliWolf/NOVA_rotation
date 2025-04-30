@@ -26,7 +26,7 @@ def generate_embeddings(model:NOVAModel, config_data:DatasetConfig,
     logging.info(f"[generate_embeddings] Is GPU available: {torch.cuda.is_available()}")
     logging.info(f"[generate_embeddings] Num GPUs Available: {torch.cuda.device_count()}")
 
-    all_embeddings, all_labels = [], []
+    all_embeddings, all_labels, all_paths = [], [], []
 
     train_paths:np.ndarray[str] = model.trainset_paths
     val_paths:np.ndarray[str] = model.valset_paths
@@ -59,15 +59,16 @@ def generate_embeddings(model:NOVAModel, config_data:DatasetConfig,
         new_set_dataset = deepcopy(full_dataset)
         new_set_dataset.set_Xy(new_set_paths, new_set_labels)
         
-        embeddings, labels = __generate_embeddings_with_dataloader(new_set_dataset, model, batch_size, num_workers)
+        embeddings, labels, paths = __generate_embeddings_with_dataloader(new_set_dataset, model, batch_size, num_workers)
         
         all_embeddings.append(embeddings)
         all_labels.append(labels)
+        all_paths.append(paths)
 
-    return all_embeddings, all_labels
+    return all_embeddings, all_labels, all_paths
 
 def save_embeddings(embeddings:List[np.ndarray[torch.Tensor]], 
-                    labels:List[np.ndarray[str]], data_config:DatasetConfig, output_folder_path)->None:
+                    labels:List[np.ndarray[str]], paths:List[np.ndarray[str]], data_config:DatasetConfig, output_folder_path)->None:
 
     unique_batches = get_unique_parts_from_labels(labels[0], get_batches_from_labels, data_config)
     logging.info(f'[save_embeddings] unique_batches: {unique_batches}')
@@ -78,7 +79,7 @@ def save_embeddings(embeddings:List[np.ndarray[torch.Tensor]],
         data_set_types = ['testset']
         
     for i, set_type in enumerate(data_set_types):
-        cur_embeddings, cur_labels = embeddings[i], labels[i]
+        cur_embeddings, cur_labels, cur_paths = embeddings[i], labels[i], paths[i]
         batch_of_label = get_batches_from_labels(cur_labels, data_config)
         __dict_temp = {batch: np.where(batch_of_label==batch)[0] for batch in unique_batches}
         for batch, batch_indexes in __dict_temp.items():
@@ -94,6 +95,7 @@ def save_embeddings(embeddings:List[np.ndarray[torch.Tensor]],
             logging.info(f"[save_embeddings] Saving {len(batch_indexes)} in {batch_save_path}")
             
             np.save(os.path.join(batch_save_path,f'{set_type}_labels.npy'), np.array(cur_labels[batch_indexes]))
+            np.save(os.path.join(batch_save_path,f'{set_type}_paths.npy'), np.array(cur_paths[batch_indexes]))
             np.save(os.path.join(batch_save_path,f'{set_type}.npy'), cur_embeddings[batch_indexes])
 
             logging.info(f'[save_embeddings] Finished {set_type} set, saved in {batch_save_path}')
@@ -136,10 +138,10 @@ def __generate_embeddings_with_dataloader(dataset:DatasetNOVA, model:NOVAModel, 
     data_loader = get_dataloader(dataset=dataset, batch_size=batch_size, num_workers=num_workers, drop_last=False)
     logging.info(f"[generate_embeddings_with_dataloader] Data loaded: there are {len(dataset)} images.")
     
-    embeddings, labels = model.infer_with_paths(data_loader)
+    embeddings, labels, paths = model.infer_with_paths(data_loader)
     logging.info(f'[generate_embeddings_with_dataloader] total embeddings: {embeddings.shape}')
     
-    return embeddings, labels
+    return embeddings, labels, paths
 
 def __load_multiple_batches(batches:List[str], embeddings_folder:str, config_data:DatasetConfig)-> Tuple[List[np.ndarray[float]],List[np.ndarray[np.str_]]]:
     

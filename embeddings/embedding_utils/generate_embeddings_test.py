@@ -7,7 +7,8 @@ print(f"NOVA_HOME: {os.getenv('NOVA_HOME')}")
 import logging
 
 from src.models.architectures.NOVA_model import NOVAModel
-from src.embeddings.embeddings_utils import generate_embeddings, save_embeddings
+# from src.embeddings.embeddings_utils import generate_embeddings, save_embeddings
+from NOVA_rotation.embeddings.embedding_utils.embedding_utils import generate_embeddings, save_embeddings
 from src.common.utils import load_config_file
 from src.datasets.dataset_config import DatasetConfig
 from src.models.utils.consts import CHECKPOINT_BEST_FILENAME, CHECKPOINTS_FOLDERNAME
@@ -23,9 +24,9 @@ def generate_embeddings_with_model(outputs_folder_path:str, config_path_data:str
     chkp_path = os.path.join(outputs_folder_path, CHECKPOINTS_FOLDERNAME, CHECKPOINT_BEST_FILENAME)
     model = NOVAModel.load_from_checkpoint(chkp_path)
 
-    embeddings, labels = generate_embeddings(model, config_data, batch_size=batch_size)
-    outputs_folder_path = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig"
-    save_embeddings(embeddings, labels, config_data, outputs_folder_path)
+    embeddings, labels, paths = generate_embeddings(model, config_data, batch_size=batch_size)
+    outputs_folder_path = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_and_paths/RotationDatasetConfig"
+    save_embeddings(embeddings, labels, paths, config_data, outputs_folder_path)
 
 if __name__ == "__main__":
     print("Starting generate embeddings...")
