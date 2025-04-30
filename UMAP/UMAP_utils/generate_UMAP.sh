@@ -1,0 +1,5 @@
+# from Git
+# python $NOVA_HOME/runnables/generate_umaps_and_plot *ABSOLUTE_PATH_TO_MODEL_FOLDER* *RELATIVE_PATH_TO_FIGURES_CONFIG_CLASS* *RELATIVE_PATH_TO_PLOT_CONFIG_CLASS*
+# example python $NOVA_HOME/runnables/generate_umaps_and_plot $NOVA_HOME/vit_models/finetuned_model ./manuscript/manuscript_figures_data_config/NeuronsUMAP0StressB6FigureConfig ./manuscript/manuscript_plot_config/UMAP0StressPlotConfig
+# in Wexac - $NOVA_HOME/runnables/run.sh $NOVA_HOME/runnables/generate_umaps_and_plot -m 5000 -a  $NOVA_HOME/vit_models/finetuned_model ./manuscript/manuscript_figures_data_config/NeuronsUMAP0StressB6FigureConfig ./manuscript/manuscript_plot_config/UMAP0StressPlotConfig -q short -j generate_umap
+python $NOVA_HOME/runnables/generate_umaps_and_plot.py $MODEL_PATH $NOVA_HOME/manuscript/manuscript_figures_data_config/NeuronsUMAP0StressB9DAPIFigureConfig $NOVA_HOME/manuscript/manuscript_plot_config/UMAP0StressPlotConfig

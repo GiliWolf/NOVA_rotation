@@ -1,0 +1,5 @@
+2025-04-28 15:52:33 INFO: [NeuronsUMAP0StressB9DAPIFigureConfig] Init (log path: /home/labs/hornsteinlab/giliwo/NOVA_rotation/attention_maps/test/UMAP_output/logs/280425_155228_873629_682636_giliwo_binbash.log; JOBID: 682636 Username: giliwo) JOBNAME: binbash
+2025-04-28 15:52:33 INFO: [NeuronsUMAP0StressB9DAPIFigureConfig] NOVA_HOME=/home/labs/hornsteinlab/giliwo/NOVA_rotation/NOVA, NOVA_DATA_HOME=/home/labs/hornsteinlab/Collaboration/MOmaps/input
+2025-04-28 15:53:00 INFO: [load_embeddings] experiment_type = neurons
+2025-04-28 15:54:27 INFO: [load_embeddings] input_folders = ['/home/labs/hornsteinlab/Collaboration/MOmaps/input/images/processed/spd2/SpinningDisk/batch9']
+2025-04-28 15:54:32 INFO: [load_embeddings] model_output_folder = /home/labs/hornsteinlab/giliwo/NOVA_rotation/attention_maps/test/UMAP_output

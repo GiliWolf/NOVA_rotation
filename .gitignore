@@ -1,0 +1,8 @@
+**/*.npy
+**/*.cppipe
+**/*.pyc
+**/*.html
+**/*.csv
+**/*.cpproj
+**/*.pth
+**/*.json

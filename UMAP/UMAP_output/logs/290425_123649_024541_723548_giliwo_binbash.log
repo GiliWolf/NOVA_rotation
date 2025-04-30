@@ -1,0 +1,16 @@
+2025-04-29 12:36:49 INFO: [RotationDatasetConfig] Init (log path: /home/labs/hornsteinlab/giliwo/NOVA_rotation/UMAP/UMAP_output/logs/290425_123649_024541_723548_giliwo_binbash.log; JOBID: 723548 Username: giliwo) JOBNAME: binbash
+2025-04-29 12:36:49 INFO: [RotationDatasetConfig] NOVA_HOME=./NOVA_rotation/NOVA, NOVA_DATA_HOME=/home/labs/hornsteinlab/Collaboration/MOmaps/input
+2025-04-29 12:36:55 INFO: [Generate SINGLE_MARKERS UMAP]
+2025-04-29 12:37:01 INFO: saveroot: /home/labs/hornsteinlab/giliwo/NOVA_rotation/UMAP/UMAP_output/figures/neurons/UMAPs/SINGLE_MARKERS/batch9_all_reps_WT_stress_Untreated_G3BP1_colored_by_CONDITIONS
+2025-04-29 12:37:02 INFO: [AnalyzerUMAPSingleMarkers.calculate] Detected markers: ['G3BP1']
+2025-04-29 12:37:02 INFO: Marker: G3BP1
+2025-04-29 12:37:02 INFO: 97 indexes have been selected
+2025-04-29 12:37:20 ERROR: 'RotationDatasetConfig' object has no attribute 'SHOW_ARI'
+Traceback (most recent call last):
+  File "./NOVA_rotation/NOVA/runnables/generate_umaps_and_plot_test.py", line 75, in <module>
+    generate_umaps(output_folder_path, config_path_data, config_path_plot)
+  File "./NOVA_rotation/NOVA/runnables/generate_umaps_and_plot_test.py", line 60, in generate_umaps
+    umap_embeddings, labels, ari_scores = analyzer_UMAP.calculate(embeddings, labels)
+  File "/home/labs/hornsteinlab/giliwo/./NOVA_rotation/NOVA/src/analysis/analyzer_umap_single_markers.py", line 54, in calculate
+    if self.data_config.SHOW_ARI:
+AttributeError: 'RotationDatasetConfig' object has no attribute 'SHOW_ARI'

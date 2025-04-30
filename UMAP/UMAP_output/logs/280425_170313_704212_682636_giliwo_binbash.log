@@ -1,0 +1,13 @@
+2025-04-28 17:03:13 INFO: [NeuronsUMAP0StressB9DAPIFigureConfig] Init (log path: /home/labs/hornsteinlab/giliwo/NOVA_rotation/attention_maps/test/UMAP_output/logs/280425_170313_704212_682636_giliwo_binbash.log; JOBID: 682636 Username: giliwo) JOBNAME: binbash
+2025-04-28 17:03:13 INFO: [NeuronsUMAP0StressB9DAPIFigureConfig] NOVA_HOME=/home/labs/hornsteinlab/giliwo/NOVA_rotation/NOVA, NOVA_DATA_HOME=/home/labs/hornsteinlab/Collaboration/MOmaps/input
+2025-04-28 17:04:26 ERROR: Object arrays cannot be loaded when allow_pickle=False
+Traceback (most recent call last):
+  File "/home/labs/hornsteinlab/giliwo/NOVA_rotation/NOVA/runnables/generate_umaps_and_plot_test.py", line 76, in <module>
+    generate_umaps(output_folder_path, config_path_data, config_path_plot)
+  File "/home/labs/hornsteinlab/giliwo/NOVA_rotation/NOVA/runnables/generate_umaps_and_plot_test.py", line 35, in generate_umaps
+    np.load(os.path.join(embeddings_folder, "testsets_labels.npy"))
+  File "/home/labs/hornsteinlab/giliwo/.conda/envs/nova/lib/python3.9/site-packages/numpy/lib/npyio.py", line 456, in load
+    return format.read_array(fid, allow_pickle=allow_pickle,
+  File "/home/labs/hornsteinlab/giliwo/.conda/envs/nova/lib/python3.9/site-packages/numpy/lib/format.py", line 795, in read_array
+    raise ValueError("Object arrays cannot be loaded when "
+ValueError: Object arrays cannot be loaded when allow_pickle=False
