@@ -9,7 +9,7 @@ import sys
 N_PAIRS = 25
 
 # Load embeddings  labels and paths
-embd_dir  = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_and_paths/RotationDatasetConfig"
+embd_dir  = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig"
 wt_untreated = np.load(os.path.join(embd_dir, "grouped_embeddings", "wt_untreated_embedding.npy"))
 wt_untreated_labels = pd.read_csv(os.path.join(embd_dir, "grouped_embeddings", "wt_untreated_labels.csv"))
 wt_untreated_paths = pd.read_csv(os.path.join(embd_dir, "grouped_embeddings", "wt_untreated_paths.csv"))
@@ -43,26 +43,28 @@ print(f"Selected {len(untreated_indices)} untreated samples and {len(stress_indi
 # save distances
 distances_df = pd.DataFrame(all_pairs, columns=["i_untreated", "j_stress"])
 distances_df["cosine_distance"] = [distances[i, j] for (i, j) in all_pairs]
-distances_df["path_untreated"] = [wt_untreated_paths.iloc[i]["full_path"] for (i, j) in all_pairs] 
-distances_df["path_stress"] = [wt_stress_paths.iloc[j]["full_path"] for (i, j) in all_pairs] 
-distances_df.to_csv(os.path.join(output_dir, "testsets_distances.csv"), index=False)
+distances_df["path_untreated"] = [wt_untreated_paths.iloc[i]["Path"] for (i, j) in all_pairs] 
+distances_df["path_stress"] = [wt_stress_paths.iloc[j]["Path"] for (i, j) in all_pairs] 
+distances_df.to_csv(os.path.join(output_dir, "testset_distances.csv"), index=False)
 
 # extract embeding,labels and paths values
 filtered_untreated_embeddings = wt_untreated[untreated_indices]
 filtered_stress_embeddings = wt_stress[stress_indices]
 filtered_untreated_labels = wt_untreated_labels.iloc[untreated_indices]
 filtered_stress_labels = wt_stress_labels.iloc[stress_indices]
-filtered_untreated_paths = wt_untreated_labels.iloc[untreated_indices]
-filtered_stress_paths = wt_stress_labels.iloc[stress_indices]
+filtered_untreated_paths = wt_untreated_paths.iloc[untreated_indices]
+filtered_stress_paths = wt_stress_paths.iloc[stress_indices]
 
 # save all together as nyp 
 # Concatenate embeddings and labels correspondly 
 testsets_embeddings = np.concatenate([filtered_untreated_embeddings, filtered_stress_embeddings], axis=0)
 testsets_labels = pd.concat([filtered_untreated_labels, filtered_stress_labels], axis=0).reset_index(drop=True)
+testsets_paths= pd.concat([filtered_untreated_paths, filtered_stress_paths], axis=0).reset_index(drop=True)
 
 # Save npy files
-np.save(os.path.join(output_dir, "testsets.npy"), testsets_embeddings)
-np.save(os.path.join(output_dir, "testsets_labels.npy"), testsets_labels["full_label"].values)
+np.save(os.path.join(output_dir, "testset.npy"), testsets_embeddings)
+np.save(os.path.join(output_dir, "testset_labels.npy"), testsets_labels["full_label"].values)
+np.save(os.path.join(output_dir, "testset_paths.npy"), np.array(testsets_paths["Path"].values, dtype=str))
 
 
 # visulaize:

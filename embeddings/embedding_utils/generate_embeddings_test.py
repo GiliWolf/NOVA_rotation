@@ -3,6 +3,9 @@ import sys
 
 sys.path.insert(1, os.getenv("NOVA_HOME"))
 print(f"NOVA_HOME: {os.getenv('NOVA_HOME')}")
+working_dir = os.getcwd()
+sys.path.append(working_dir)
+print(f"working_dir: {working_dir}")
 
 import logging
 
@@ -25,7 +28,7 @@ def generate_embeddings_with_model(outputs_folder_path:str, config_path_data:str
     model = NOVAModel.load_from_checkpoint(chkp_path)
 
     embeddings, labels, paths = generate_embeddings(model, config_data, batch_size=batch_size)
-    outputs_folder_path = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_and_paths/RotationDatasetConfig"
+    outputs_folder_path = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/with_path_gal"
     save_embeddings(embeddings, labels, paths, config_data, outputs_folder_path)
 
 if __name__ == "__main__":
