@@ -5,6 +5,9 @@ import cv2
 
 sys.path.insert(1, os.getenv("NOVA_HOME"))
 print(f"NOVA_HOME: {os.getenv('NOVA_HOME')}")
+working_dir = os.getcwd()
+sys.path.append(working_dir)
+print(f"working_dir: {working_dir}")
 
 import logging
 
@@ -25,6 +28,8 @@ from src.datasets.label_utils import get_batches_from_labels, get_unique_parts_f
     edit_labels_by_config, get_batches_from_input_folders, get_reps_from_labels, get_conditions_from_labels, get_cell_lines_from_labels
 from torch.utils.data import DataLoader
 from collections import OrderedDict
+
+from NOVA_rotation.load_files.load_data_from_npy import parse_paths, load_tile, load_paths_from_npy
 
 
 """
@@ -48,25 +53,37 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     attn_maps, labels, paths = generate_attn_maps(model, config_data, batch_size=batch_size)
     
     # OUTPUT 
-    outputs_folder_path = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output"
+    outputs_folder_path = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output/RotationDatasetConfig_Pairs"
     saveroot = outputs_folder_path
 
     # CHECK WHAT TO KEEP 
-    colored_by = get_if_exists(config_plot, 'MAP_LABELS_FUNCTION',None)
-    if colored_by is not None:
-        saveroot += f'_colored_by_{colored_by}'
-    to_color = get_if_exists(config_plot, 'TO_COLOR',None)
-    if to_color is not None:
-        saveroot += f'_coloring_{to_color[0].split("_")[0]}'
+    # colored_by = get_if_exists(config_plot, 'MAP_LABELS_FUNCTION',None)
+    # if colored_by is not None:
+    #     saveroot += f'_colored_by_{colored_by}'
+    # to_color = get_if_exists(config_plot, 'TO_COLOR',None)
+    # if to_color is not None:
+    #     saveroot += f'_coloring_{to_color[0].split("_")[0]}'
 
-    os.makedirs(saveroot, exist_ok=True)
-    logging.info(f'saveroot: {saveroot}')
+    # os.makedirs(saveroot, exist_ok=True)
+    # logging.info(f'saveroot: {saveroot}')
 
-    # Plot the attn_maps
-    sample_index = 0
-    plot_attn_maps(attn_maps, labels, paths, sample_index, config_data, os.path.join(outputs_folder_path, "figures"))
+    # extract samples to plot and save 
+    pairs_dir = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/pairs"
 
-    # save the attn_maps
+    
+    ### NEEDS TO ADD - CAN BE IN BATCHES, FOR NOW TAKES THE FIRST ONE
+    attn_maps = attn_maps[0]
+    labels = labels[0]
+    paths = paths[0]
+
+    # filter by path names 
+    samples_indices = __extract_samples_to_plot(keep_samples_dir=pairs_dir, paths = paths)
+    attn_maps = attn_maps[samples_indices]
+    labels = labels[samples_indices]
+    paths = paths[samples_indices]
+    plot_attn_maps(attn_maps, labels, paths, config_data, os.path.join(outputs_folder_path, "figures"))
+
+    # save the raw attn_maps
     save_attn_maps(attn_maps, labels, config_data, os.path.join(outputs_folder_path, "raw"))
 
 def generate_attn_maps(model:NOVAModel, config_data:DatasetConfig, 
@@ -161,7 +178,16 @@ def __generate_attn_maps_with_dataloader(dataset:DatasetNOVA, model:NOVAModel, b
     return attn_maps, labels, paths
 
 
-def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths: np.ndarray[str], sample_index: int, data_config: DatasetConfig, output_folder_path: str):
+def __extract_samples_to_plot(keep_samples_dir:str, paths: np.ndarray[str]):
+    keep_paths_df = load_paths_from_npy(keep_samples_dir)
+    paths_df = parse_paths(paths)
+
+    samples_indices = paths_df[paths_df["Path"].isin(keep_paths_df["Path"])].index.tolist()
+
+    return samples_indices
+
+
+def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths: np.ndarray[str], data_config: DatasetConfig, output_folder_path: str):
     """
     Plot attention maps for a specific sample.
 
@@ -189,45 +215,74 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
 """
 
     os.makedirs(output_folder_path, exist_ok=True)
+    img_shape = data_config.IMAGE_SIZE # suppose to be square (100, 100)
+    img_path_df = parse_paths(paths)
 
     # Extract attention and label for the sample
+    logging.info(f"[plot_attn_maps] starting plotting {len(paths)} samples.")
+    for index, (sample_attn, label, img_path) in enumerate(zip(attn_maps, labels, paths)):
+        # load img details
+        img_path = str(img_path_df.Path.iloc[index]).split('.npy')[0]+'.npy'
+        tile = int(img_path_df.Tile.iloc[index])
+        Site = img_path_df.Site.iloc[index]
 
-    ### NEEDS TO ADD - CAN BE IN BATCHES, FOR NOW TAKES THE FIRST ONE
-    attn_maps = attn_maps[0]
-    labels = labels[0]
-    paths = paths[0]
+        # plot
+        output_folder_path = os.path.join(output_folder_path, os.path.basename(img_path).split('.npy')[0])
+        os.makedirs(output_folder_path, exist_ok=True)
+        __plot_attn(sample_attn, img_path, tile, Site, label, img_shape, output_folder_path)
 
-
-    sample_attn = attn_maps[sample_index]  # (num_layers, num_heads, num_patches, num_patches)
-    label = labels[sample_index]
-    img_path = paths[sample_index]
-    logging.info(f"[plot_attn_maps] extracting sample label: {label}")
-    logging.info(f"[plot_attn_maps] extracting sample image: {os.path.basename(img_path)}")
-
+def __plot_attn(sample_attn: np.ndarray[float], img_path:str, tile:int, Site:str,  label:str, img_shape:tuple, output_folder_path:str):
     num_layers, num_heads, num_patches, _ = sample_attn.shape
     patch_dim = int(np.sqrt(num_patches))
-    img_shape = data_config.IMAGE_SIZE # suppose to be square (100, 100)
-    original_img = np.load(img_path) # shape: (9, 100, 100, 2)
-    original_img = original_img[0,:,:,1] # get only one channel 
-    original_img = cv2.normalize(original_img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)# Convert to uint8
-    assert original_img.shape == img_shape
 
-    logging.info(f"[plot_attn_maps] dimnesion: {num_layers} layers, {num_heads} heads, {num_patches} patches, {img_shape} img_shape")
+    marker, nucleus, input_overlay = load_tile(img_path, tile)
+    assert marker.shape == nucleus.shape == img_shape
+
+    logging.info(f"[plot_attn_maps] extracting sample image path: {os.path.basename(img_path)}")
+    logging.info(f"[plot_attn_maps] extracting sample label: {label}")
+    logging.info(f"[plot_attn_maps] dimensions: {num_layers} layers, {num_heads} heads, {num_patches} patches, {img_shape} img_shape")
     
-
-    # Placeholder image if none provided
-    if original_img is None:
-        logging.info(f"[plot_attn_maps] no original image provided, generating dummy img.")
-        assert img_shape is not None, "If no original_img is provided, you must supply img_shape."
-        if len(img_shape) == 2:
-            # If shape is (H, W), single-channel grayscale
-            original_img = np.ones(img_shape, dtype=np.uint8) * 255
-        else:
-            raise ValueError(f"Unsupported img_shape format: {img_shape}")
 
     for layer_idx in range(num_layers):
         # Get attention for this layer and average over heads
         attn = sample_attn[layer_idx]  # (num_heads, num_patches+1, num_patches+1)
+        attn_map, heatmap_colored = __process_attn_map(attn, patch_dim, img_shape) #(img_shape
+
+        # Green = nucleus
+        # Blue = marker
+        # red = attn map
+        attn_red = np.zeros_like(input_overlay)
+        attn_inverted = 1.0 - attn_map  # higher attention => deeper red
+        attn_red[..., 0] = np.clip(attn_inverted, 0, 1) 
+
+        # overlay attention with input fig using alpha for transpercy 
+        alpha = 0.45   
+        attn_overlay = cv2.addWeighted(input_overlay, 1.0, attn_red, alpha, 0)
+        attn_overlay_uint8 = (attn_overlay * 255).clip(0, 255).astype(np.uint8)
+
+        fig, ax = plt.subplots(1, 3, figsize=(12, 4))
+        ax[0].set_title(f'Input - Marker (blue), Nucleus (green)', fontsize=11)
+        ax[0].imshow(input_overlay)
+        ax[0].set_axis_off()
+
+        ax[1].set_title(f'Attention Heatmap', fontsize=11)
+        ax[1].imshow(heatmap_colored, cmap='hot')
+        ax[1].set_axis_off()
+
+        ax[2].set_title(f'Attention Overlay', fontsize=11)
+        ax[2].imshow(attn_overlay_uint8)
+        ax[2].set_axis_off()
+
+        fig.suptitle(f"Site {Site} | Tile {tile} | Layer {layer_idx}\n{label}", fontsize=12)
+
+        save_path = os.path.join(output_folder_path, f'site{Site}_tile{tile}_layer{layer_idx}.png')
+        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+        plt.close()
+
+        logging.info(f"[plot_attn_maps] attn maps saved: {save_path}")
+
+
+def __process_attn_map(attn, patch_dim, img_shape):# (num_heads, num_patches+1, num_patches+1)
         avg_attn = attn.mean(axis=0)  # (num_patches+1, num_patches+1)
 
         # Take attention from CLS token to all other patches (assumes CLS is first)
@@ -240,22 +295,11 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
         # Resize to match image size
         heatmap_resized = cv2.resize(attn_heatmap, img_shape)
 
-        # Normalize for color mapping
+        # # Normalize for color mapping
         attn_norm = cv2.normalize(heatmap_resized, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
         heatmap_colored = cv2.applyColorMap(attn_norm, cv2.COLORMAP_JET)
-        # convert original img to 3ch to match heatmap for overlay
-        gray_img_3ch = cv2.cvtColor(original_img, cv2.COLOR_GRAY2BGR) 
-        overlay = cv2.addWeighted(heatmap_colored, 0.5, gray_img_3ch, 0.5, 0)
 
-        # Save heatmap and overlay
-        heatmap_path = os.path.join(output_folder_path, f'sample{sample_index}_layer{layer_idx}_heatmap.png')
-        overlay_path = os.path.join(output_folder_path, f'sample{sample_index}_layer{layer_idx}_overlay.png')
-
-        plt.imsave(heatmap_path, heatmap_resized, cmap='hot')
-        cv2.imwrite(overlay_path, overlay)
-
-        logging.info(f"[plot_attn_maps] heatmap saved: {heatmap_path}")
-        logging.info(f"[plot_attn_maps] overlay img saved: {overlay_path}")
+        return heatmap_resized, heatmap_colored
 
 """
 After constructung working plot_attn_map, use the follwoing function, based on 

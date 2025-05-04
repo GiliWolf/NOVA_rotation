@@ -5,8 +5,7 @@ import sys
 import os
 
 
-embd_dir  = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_and_paths/RotationDatasetConfig/embeddings/neurons/batch9"
-embd_dir = "/home/labs/hornsteinlab/Collaboration/MOmaps/outputs/vit_models/finetuned_model/embeddings/neurons_iu/batch9"
+embd_dir  = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/pairs"
 paths_path = os.path.join(embd_dir, "testset_paths.npy")
 paths = np.load(paths_path)
 paths_df = pd.DataFrame(paths, columns=['index', 'full_path'])

@@ -50,6 +50,21 @@ def load_paths_from_npy(embd_dir):
     # Load data
     paths = np.load(os.path.join(embd_dir, "testset_paths.npy"), allow_pickle=True)
 
+    df = parse_paths(paths)
+
+    return df
+
+def parse_paths(paths):
+    """
+    args:
+        paths:  list/array of full path of format: 
+                <path>/batchX/SCNA/Condition/Cell_Line/rep{X}_R11_w2confmCherry_s{X}_panel{X}_SCNA_processed.npy/{TILE}
+    
+    returns:
+        df: parsed df woth columns: ["Batch", "Condition", "Rep", "Site", "Panel", "Cell_Line", "Tile", "Path"]
+    """
+
+
     # Regex pattern to extract Batch, Condition, Rep, Raw Image Name, Panel, Cell Line, and Tile
     pattern = re.compile(
     r".*/[Bb]atch(\d+)/[^/]*/(Untreated|stress)/[^/]*/(rep\d+)_.*_(s\d+)_?(panel\w+)_([^_]+)_processed\.npy/(\d+)"
@@ -57,11 +72,16 @@ def load_paths_from_npy(embd_dir):
 
     # Parsing the paths
     parsed_data = [pattern.match(path).groups() for path in paths if pattern.match(path)]
+
+    if len(parsed_data) != len(paths):
+        raise RuntimeError("in parse_paths: not all paths match the regex pattern.")
     # Convert metadata to DataFrame
     df = pd.DataFrame(parsed_data, columns=["Batch", "Condition", "Rep", "Site", "Panel", "Cell_Line", "Tile"])
-    df['Path'] = [path.split('.npy')[0]+'.npy' for path in paths]
+    #df['Path'] = [path.split('.npy')[0]+'.npy' for path in paths]
+    df['Path'] = paths
 
     return df
+
 
 
 def display_paths(df:pd.DataFrame, save_dir: str = None):
@@ -77,29 +97,36 @@ def display_paths(df:pd.DataFrame, save_dir: str = None):
         save_path = os.path.join(save_dir, f"paths.csv")
         df.to_csv(save_path, index=False)
 
-def display_tile(df:pd.DataFrame, index:int, save_dir: str = None):
-    path = df.Path.loc[index]
-    tile = int(df.Tile.loc[index])
-    Site = df.Site.loc[index]
 
+def load_tile(path, tile):
+    """
+    args:
+        path:   path of the original img. should be of size (num_tiles, H, W, num_ch)
+
+    returns:
+        marker:     normalized img matrix for the marker (ch0)
+        nucleus:    normalized img matrix for the nucleus (ch1)
+        overlay:    overlay of the marker on top of the nucleus (Red for marker, Green for nucleus)
+    """
     # Load the image
     image = np.load(path)
     site_image = image[tile]
     marker = site_image[:, :, 0]
     nucleus = site_image[:, :, 1]
 
-
     # Normalize
     marker = np.clip(marker, 0, 1)
     nucleus = np.clip(nucleus, 0, 1)
 
-
     # Create RGB overlay: Red for marker, Green for nucleus
     overlay = np.zeros((*marker.shape, 3))
-    overlay[..., 0] = marker      # Red channel = marker
+    overlay[..., 2] = marker      # blue channel = marker
     overlay[..., 1] = nucleus     # Green channel = nucleus
 
-    # Blue remains 0
+    return marker, nucleus, overlay
+
+def display_tile(Site:str, tile:int, marker:np.array, nucleus:np.array, overlay:np.array, save_dir:str = None):
+
     # Plot target, nucleus, and overlay
     fig, ax = plt.subplots(1, 3, figsize=(10, 4))
     ax[0].set_title(f'{Site}/{tile} - Marker', fontsize=11)
@@ -131,4 +158,12 @@ if __name__ == "__main__":
 
     paths_df = load_paths_from_npy(embd_dir)
     display_paths(paths_df)
-    display_tile(paths_df, 2, save_dir = output_dir)
+    print(paths_df.Path.iloc[0])
+
+    # # load img
+    # index = 0
+    # path = paths_df.Path.loc[index]
+    # tile = int(paths_df.Tile.loc[index])
+    # Site = paths_df.Site.loc[index]
+    # marker, nucleus, overlay = load_tile(path, tile)
+    # display_tile(Site, tile, marker, nucleus, overlay)
