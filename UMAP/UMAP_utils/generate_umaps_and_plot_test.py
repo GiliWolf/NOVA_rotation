@@ -29,9 +29,9 @@ def generate_umaps(output_folder_path:str, config_path_data:str, config_path_plo
     config_data.OUTPUTS_FOLDER = output_folder_path
     config_plot:PlotConfig = load_config_file(config_path_plot, 'plot')
     
-    #** CHANGED INSTEAD OF load_embeddings **#
-    embeddings_folder = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/attention_maps/test/embedding_output/pairs"
-    embeddings, labels = np.load(os.path.join(embeddings_folder, "testsets.npy"), allow_pickle=True), np.load(os.path.join(embeddings_folder, "testsets_labels.npy"), allow_pickle=True)
+    # CHANGED INSTEAD OF load_embeddings
+    embeddings_folder = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/embeddings/neurons/batch9"
+    embeddings, labels = np.load(os.path.join(embeddings_folder, "testset.npy"), allow_pickle=True), np.load(os.path.join(embeddings_folder, "testset_labels.npy"), allow_pickle=True)
 
     umap_idx = get_if_exists(config_plot, 'UMAP_TYPE', None)
     if umap_idx not in analyzer_mapping:
@@ -40,17 +40,20 @@ def generate_umaps(output_folder_path:str, config_path_data:str, config_path_plo
     AnalyzerUMAPClass, UMAP_name = analyzer_mapping[umap_idx]
     logging.info(f"[Generate {UMAP_name} UMAP]")
 
-    # Create the analyzer instance
+     # Create the analyzer instance
+    ## change output_folder_path? 
     analyzer_UMAP:AnalyzerUMAP = AnalyzerUMAPClass(config_data, output_folder_path)
     
     # Define the output folder path
-    saveroot = analyzer_UMAP.get_saving_folder(feature_type = os.path.join('UMAPs', analyzer_UMAP.UMAPType(umap_idx).name))  
-    colored_by = get_if_exists(config_plot, 'MAP_LABELS_FUNCTION',None)
-    if colored_by is not None:
-        saveroot += f'_colored_by_{colored_by}'
-    to_color = get_if_exists(config_plot, 'TO_COLOR',None)
-    if to_color is not None:
-        saveroot += f'_coloring_{to_color[0].split("_")[0]}'
+    #saveroot = analyzer_UMAP.get_saving_folder(feature_type = os.path.join('UMAPs', analyzer_UMAP.UMAPType(umap_idx).name)) 
+    #CHANGED SAVING ROOT
+    saveroot = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/UMAP/UMAP_output/WT-G3BP1-stress_untreated"
+    # colored_by = get_if_exists(config_plot, 'MAP_LABELS_FUNCTION',None)
+    # if colored_by is not None:
+    #     saveroot += f'_colored_by_{colored_by}'
+    # to_color = get_if_exists(config_plot, 'TO_COLOR',None)
+    # if to_color is not None:
+    #     saveroot += f'_coloring_{to_color[0].split("_")[0]}'
 
     os.makedirs(saveroot, exist_ok=True)
     logging.info(f'saveroot: {saveroot}')
@@ -59,6 +62,7 @@ def generate_umaps(output_folder_path:str, config_path_data:str, config_path_plo
     umap_embeddings, labels, ari_scores = analyzer_UMAP.calculate(embeddings, labels)
 
     # Plot the UMAP
+
     plot_umap(umap_embeddings, labels, config_data, config_plot, saveroot, umap_idx, ari_scores)
         
 
