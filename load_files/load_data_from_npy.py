@@ -6,8 +6,8 @@ import os
 
 
 def load_labels_from_npy(embd_dir):
-    abels_path = os.path.join(embd_dir, "testset_labels.npy")
-    lablels = np.load(labels_path)
+    labels_path = os.path.join(embd_dir, "testset_labels.npy")
+    labels = np.load(labels_path, allow_pickle=True)
     labels_df = pd.DataFrame(labels, columns=['full_label'])
     labels_df[['protein', 'condition', 'treatment', 'batch', 'replicate']] = labels_df['full_label'].str.split('_', expand=True)
 
@@ -27,12 +27,29 @@ def display_labels(df:pd.DataFrame, save_dir: str = None):
         save_path = os.path.join(save_dir, f"labels.csv")
         df.to_csv(save_path, index=False)
 
+def load_npy_to_df(input_dir, file_name):
+    path = os.path.join(input_dir, file_name)
+    data = np.load(path, allow_pickle=True)
+    df = pd.DataFrame(data)
+    return df
+
+def load_npy_to_nparray(input_dir, file_name):
+    path = os.path.join(input_dir, file_name)
+    data = np.load(path, allow_pickle=True)
+    return data
+
+
 def load_embeddings_from_npy(embd_dir):
     embeddings_path = os.path.join(embd_dir, "testset.npy")
-    embeddings = np.load(embeddings_path)
+    embeddings = np.load(embeddings_path, allow_pickle=True)
     embeddings_df = pd.DataFrame(embeddings)
-
     return embeddings_df
+
+def load_attn_maps_from_npy(embd_dir):
+    attn_path = os.path.join(embd_dir, "testset_attn.npy")
+    attn = np.load(attn_path, allow_pickle=True)
+    attn_df = pd.DataFrame(attn)
+    return attn_df
 
 def display_embeddings(df:pd.DataFrame, save_dir: str = None):
     print("embeddings_df:")
@@ -77,10 +94,16 @@ def parse_paths(paths):
         raise RuntimeError("in parse_paths: not all paths match the regex pattern.")
     # Convert metadata to DataFrame
     df = pd.DataFrame(parsed_data, columns=["Batch", "Condition", "Rep", "Site", "Panel", "Cell_Line", "Tile"])
-    #df['Path'] = [path.split('.npy')[0]+'.npy' for path in paths]
     df['Path'] = paths
+    df['File_Name'] = [os.path.basename(path.split('.npy')[0]) for path in paths]
 
     return df
+
+def Parse_Path_Item(path_item):
+    img_path = str(path_item.Path).split('.npy')[0]+'.npy'
+    tile = int(path_item.Tile)
+    Site = path_item.Site
+    return img_path, tile, Site
 
 
 

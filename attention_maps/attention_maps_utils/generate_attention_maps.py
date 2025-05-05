@@ -29,7 +29,7 @@ from src.datasets.label_utils import get_batches_from_labels, get_unique_parts_f
 from torch.utils.data import DataLoader
 from collections import OrderedDict
 
-from NOVA_rotation.load_files.load_data_from_npy import parse_paths, load_tile, load_paths_from_npy
+from NOVA_rotation.load_files.load_data_from_npy import parse_paths, load_tile, load_paths_from_npy, Parse_Path_Item
 
 
 """
@@ -71,6 +71,7 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     pairs_dir = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/pairs"
 
     
+
     ### NEEDS TO ADD - CAN BE IN BATCHES, FOR NOW TAKES THE FIRST ONE
     attn_maps = attn_maps[0]
     labels = labels[0]
@@ -81,10 +82,11 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     attn_maps = attn_maps[samples_indices]
     labels = labels[samples_indices]
     paths = paths[samples_indices]
-    plot_attn_maps(attn_maps, labels, paths, config_data, os.path.join(outputs_folder_path, "figures"))
+    #plot_attn_maps(attn_maps, labels, paths, config_data, os.path.join(outputs_folder_path, "figures"))
 
-    # save the raw attn_maps
-    save_attn_maps(attn_maps, labels, config_data, os.path.join(outputs_folder_path, "raw"))
+    # save the raw attn_map
+    save_attn_maps([attn_maps], [labels], [paths], config_data, os.path.join(outputs_folder_path, "raw"))
+
 
 def generate_attn_maps(model:NOVAModel, config_data:DatasetConfig, 
                         batch_size:int=700, num_workers:int=6)->Tuple[List[np.ndarray[torch.Tensor]],
@@ -133,8 +135,10 @@ def generate_attn_maps(model:NOVAModel, config_data:DatasetConfig,
 
     return all_attn_maps, all_labels, all_paths
 
-def save_attn_maps(embeddings:List[np.ndarray[torch.Tensor]], 
-                    labels:List[np.ndarray[str]], data_config:DatasetConfig, output_folder_path)->None:
+
+def save_attn_maps(attn_maps:List[np.ndarray[torch.Tensor]], 
+                    labels:List[np.ndarray[str]], paths:List[np.ndarray[str]],
+                    data_config:DatasetConfig, output_folder_path)->None:
 
     unique_batches = get_unique_parts_from_labels(labels[0], get_batches_from_labels, data_config)
     logging.info(f'[save_attn_maps] unique_batches: {unique_batches}')
@@ -145,7 +149,7 @@ def save_attn_maps(embeddings:List[np.ndarray[torch.Tensor]],
         data_set_types = ['testset']
         
     for i, set_type in enumerate(data_set_types):
-        cur_embeddings, cur_labels = embeddings[i], labels[i]
+        cur_attn_maps, cur_labels, cur_paths = attn_maps[i], labels[i], paths[i]
         batch_of_label = get_batches_from_labels(cur_labels, data_config)
         __dict_temp = {batch: np.where(batch_of_label==batch)[0] for batch in unique_batches}
         for batch, batch_indexes in __dict_temp.items():
@@ -160,8 +164,9 @@ def save_attn_maps(embeddings:List[np.ndarray[torch.Tensor]],
                     logging.warning(f"[save_attn_maps] SPLIT_DATA={data_config.SPLIT_DATA} BUT there exists trainset or valset in folder {batch_save_path}!! make sure you don't overwrite the testset!!")
             logging.info(f"[save_attn_maps] Saving {len(batch_indexes)} in {batch_save_path}")
             
-            np.save(os.path.join(batch_save_path,f'{set_type}_attn_labels.npy'), np.array(cur_labels[batch_indexes]))
-            np.save(os.path.join(batch_save_path,f'{set_type}_attn.npy'), cur_embeddings[batch_indexes])
+            np.save(os.path.join(batch_save_path,f'{set_type}_labels.npy'), np.array(cur_labels[batch_indexes]))
+            np.save(os.path.join(batch_save_path,f'{set_type}_attn.npy'), cur_attn_maps[batch_indexes])
+            np.save(os.path.join(batch_save_path,f'{set_type}_paths.npy'), cur_paths[batch_indexes])
 
             logging.info(f'[save_attn_maps] Finished {set_type} set, saved in {batch_save_path}')
 
@@ -222,14 +227,13 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
     logging.info(f"[plot_attn_maps] starting plotting {len(paths)} samples.")
     for index, (sample_attn, label, img_path) in enumerate(zip(attn_maps, labels, paths)):
         # load img details
-        img_path = str(img_path_df.Path.iloc[index]).split('.npy')[0]+'.npy'
-        tile = int(img_path_df.Tile.iloc[index])
-        Site = img_path_df.Site.iloc[index]
+        path_item = img_path_df.iloc[index]
+        img_path, tile, site = Parse_Path_Item(path)
 
         # plot
-        output_folder_path = os.path.join(output_folder_path, os.path.basename(img_path).split('.npy')[0])
-        os.makedirs(output_folder_path, exist_ok=True)
-        __plot_attn(sample_attn, img_path, tile, Site, label, img_shape, output_folder_path)
+        temp_output_folder_path = os.path.join(output_folder_path, os.path.basename(img_path).split('.npy')[0])
+        os.makedirs(temp_output_folder_path, exist_ok=True)
+        __plot_attn(sample_attn, img_path, tile, Site, label, img_shape, temp_output_folder_path)
 
 def __plot_attn(sample_attn: np.ndarray[float], img_path:str, tile:int, Site:str,  label:str, img_shape:tuple, output_folder_path:str):
     num_layers, num_heads, num_patches, _ = sample_attn.shape
