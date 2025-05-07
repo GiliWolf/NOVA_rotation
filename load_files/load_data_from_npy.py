@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import os
 
 
-def load_labels_from_npy(embd_dir):
-    labels_path = os.path.join(embd_dir, "testset_labels.npy")
+def load_labels_from_npy(embd_dir, set_type):
+    labels_path = os.path.join(embd_dir, f"{set_type}_labels.npy")
     labels = np.load(labels_path, allow_pickle=True)
     labels_df = pd.DataFrame(labels, columns=['full_label'])
     labels_df[['protein', 'condition', 'treatment', 'batch', 'replicate']] = labels_df['full_label'].str.split('_', expand=True)
@@ -39,14 +39,14 @@ def load_npy_to_nparray(input_dir, file_name):
     return data
 
 
-def load_embeddings_from_npy(embd_dir):
-    embeddings_path = os.path.join(embd_dir, "testset.npy")
+def load_embeddings_from_npy(embd_dir, set_type):
+    embeddings_path = os.path.join(embd_dir, f"{set_type}.npy")
     embeddings = np.load(embeddings_path, allow_pickle=True)
     embeddings_df = pd.DataFrame(embeddings)
     return embeddings_df
 
-def load_attn_maps_from_npy(embd_dir):
-    attn_path = os.path.join(embd_dir, "testset_attn.npy")
+def load_attn_maps_from_npy(embd_dir, set_type):
+    attn_path = os.path.join(embd_dir, f"{set_type}_attn.npy")
     attn = np.load(attn_path, allow_pickle=True)
     attn_df = pd.DataFrame(attn)
     return attn_df
@@ -62,10 +62,10 @@ def display_embeddings(df:pd.DataFrame, save_dir: str = None):
         df.to_csv(save_path, index=False)
 
 
-def load_paths_from_npy(embd_dir):
+def load_paths_from_npy(embd_dir, set_type):
 
     # Load data
-    paths = np.load(os.path.join(embd_dir, "testset_paths.npy"), allow_pickle=True)
+    paths = np.load(os.path.join(embd_dir, f"{set_type}_paths.npy"), allow_pickle=True)
 
     df = parse_paths(paths)
 

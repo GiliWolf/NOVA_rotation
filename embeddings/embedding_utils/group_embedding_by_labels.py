@@ -4,9 +4,15 @@ import pandas as pd
 import sys
 import os
 
-embd_dir  = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/embeddings/neurons/batch9"
-output_dir = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/grouped_embeddings"
+#init paths
+home_dir = os.getenv("HOME")
+emb_out_dir = "NOVA_rotation/embeddings/embedding_output"
+run_name = "RotationDatasetConfig_New_paths"
+embd_dir  = os.path.join(home_dir, emb_out_dir, run_name, "embeddings/neurons/batch9")
+output_dir = os.path.join(home_dir, emb_out_dir, run_name, "grouped_embedding")
 os.makedirs(output_dir, exist_ok=True)
+
+# load data
 label_path = os.path.join(embd_dir, "testset_labels.npy")
 labels = np.load(label_path)
 

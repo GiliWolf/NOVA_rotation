@@ -7,10 +7,16 @@ import pandas as pd
 import sys
 
 N_PAIRS = 25
+import os
+print(os.path.exists("/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig_New_paths/grouped_embedding/wt_untreated_embedding.npy"))
 
 # Load embeddings  labels and paths
-embd_dir  = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig"
-wt_untreated = np.load(os.path.join(embd_dir, "grouped_embeddings", "wt_untreated_embedding.npy"))
+home_dir = os.getenv("HOME")
+emb_out_dir = "NOVA_rotation/embeddings/embedding_output"
+run_name = "RotationDatasetConfig_New_paths"
+embd_dir  = os.path.join(home_dir, emb_out_dir, run_name)
+
+wt_untreated = np.load(os.path.join(embd_dir, "grouped_embeddings", "wt_untreated_embedding.npy"), allow_pickle=True)
 wt_untreated_labels = pd.read_csv(os.path.join(embd_dir, "grouped_embeddings", "wt_untreated_labels.csv"))
 wt_untreated_paths = pd.read_csv(os.path.join(embd_dir, "grouped_embeddings", "wt_untreated_paths.csv"))
 wt_stress = np.load(os.path.join(embd_dir, "grouped_embeddings", "wt_stress_embedding.npy"))
