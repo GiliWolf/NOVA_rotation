@@ -176,17 +176,9 @@ def display_tile(Site:str, tile:int, marker:np.array, nucleus:np.array, overlay:
 
 
 if __name__ == "__main__":
-    embd_dir = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/pairs"
-    output_dir = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/load_files/images/output"
+    path = "/home/projects/hornsteinlab/Collaboration/MOmaps/outputs/vit_models/finetuned_model/embeddings/neurons/batch9"
+    emb = load_embeddings_from_npy(path, "testset")
 
-    paths_df = load_paths_from_npy(embd_dir)
-    display_paths(paths_df)
-    print(paths_df.Path.iloc[0])
-
-    # # load img
-    # index = 0
-    # path = paths_df.Path.loc[index]
-    # tile = int(paths_df.Tile.loc[index])
-    # Site = paths_df.Site.loc[index]
-    # marker, nucleus, overlay = load_tile(path, tile)
-    # display_tile(Site, tile, marker, nucleus, overlay)
+    path2 = "/home/labs/hornsteinlab/Collaboration/MOmaps/outputs/vit_models/finetuned_model/embeddings/neurons/batch9"
+    em2 = load_embeddings_from_npy(path2, "testset")
+    print(np.array_equal(emb, em2))

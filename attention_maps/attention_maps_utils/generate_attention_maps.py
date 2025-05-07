@@ -4,10 +4,7 @@ import matplotlib.pyplot as plt
 import cv2
 sys.path.insert(0, os.getenv("HOME"))
 sys.path.insert(1, os.getenv("NOVA_HOME"))
-# print(f"NOVA_HOME: {os.getenv('NOVA_HOME')}")
-# working_dir = os.getcwd()
-# sys.path.append(working_dir)
-# print(f"working_dir: {working_dir}")
+
 
 import logging
 
@@ -53,31 +50,18 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     attn_maps, labels, paths = generate_attn_maps(model, config_data, batch_size=batch_size)
     
     # OUTPUT 
-    outputs_folder_path = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output/RotationDatasetConfig_Pairs_New_paths"
-    saveroot = outputs_folder_path
-
-    # CHECK WHAT TO KEEP 
-    # colored_by = get_if_exists(config_plot, 'MAP_LABELS_FUNCTION',None)
-    # if colored_by is not None:
-    #     saveroot += f'_colored_by_{colored_by}'
-    # to_color = get_if_exists(config_plot, 'TO_COLOR',None)
-    # if to_color is not None:
-    #     saveroot += f'_coloring_{to_color[0].split("_")[0]}'
-
-    # os.makedirs(saveroot, exist_ok=True)
-    # logging.info(f'saveroot: {saveroot}')
-
-    # extract samples to plot and save 
-    pairs_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig_New_paths/pairs"
+    input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation"
+    run_name = "RotationDatasetConfig"
+    outputs_folder_path = os.path.join(input_dir, "attention_maps/attention_maps_output", run_name)
 
     # filter by path names 
-    samples_indices = __extract_indices_to_plot(keep_samples_dir=pairs_dir, paths = paths, data_config = config_data)
+    samples_indices = __extract_indices_to_plot(keep_samples_dir=config_plot.SAMPLES_PATH, paths = paths, data_config = config_data)
     attn_maps = __extract_samples_to_plot(attn_maps, samples_indices, data_config = config_data)
     labels = __extract_samples_to_plot(labels, samples_indices, data_config = config_data)
     paths = __extract_samples_to_plot(paths, samples_indices, data_config = config_data)
-    plot_attn_maps(attn_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "figures"))
+    plot_attn_maps(attn_maps, labels, paths, config_data, config_plot, output_folder_path=os.path.join(outputs_folder_path, "figures"))
 
-    # save the raw attn_map
+    # save the raw attn_map (AFTER FILTERING)
     save_attn_maps(attn_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "raw"))
 
 
@@ -186,7 +170,8 @@ def __extract_indices_to_plot(keep_samples_dir:str, paths: np.ndarray[str], data
     all_samples_indices = []
     for i, set_type in enumerate(data_set_types):
         cur_paths = paths[i]
-        keep_paths_df = load_paths_from_npy(keep_samples_dir, set_type)
+        temp_keep_samples_dir = os.path.join(keep_samples_dir, set_type)
+        keep_paths_df = load_paths_from_npy(temp_keep_samples_dir, set_type)
         paths_df = parse_paths(cur_paths)
         samples_indices = paths_df[paths_df["Path"].isin(keep_paths_df["Path"])].index.tolist()
         all_samples_indices.append(samples_indices)
@@ -209,7 +194,7 @@ def __extract_samples_to_plot(sampels: np.ndarray[str], indices:list, data_confi
     return all_filtered_sampels
 
 
-def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths: np.ndarray[str], data_config: DatasetConfig, output_folder_path: str):
+def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths: np.ndarray[str], data_config: DatasetConfig, config_plot, output_folder_path: str):
     """
     Plot attention maps for a specific sample.
 
@@ -222,6 +207,7 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
     sample_index :      int
                         The index of the sample whose attention maps will be visualized.
     data_config:        DatasetConfig 
+    config_plot:        PlotConfig
     output_folder_path : str
                         Path to the folder where the attention heatmaps and overlay plots will be saved.
 
@@ -260,9 +246,10 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
             # plot
             temp_output_folder_path = os.path.join(output_folder_path, set_type, os.path.basename(img_path).split('.npy')[0])
             os.makedirs(temp_output_folder_path, exist_ok=True)
-            __plot_attn(sample_attn, img_path, tile, site, label, img_shape, temp_output_folder_path)
+            __plot_attn(sample_attn, img_path, tile, site, label, img_shape, config_plot, temp_output_folder_path)
 
-def __plot_attn(sample_attn: np.ndarray[float], img_path:str, tile:int, Site:str,  label:str, img_shape:tuple, output_folder_path:str):
+
+def __plot_attn(sample_attn: np.ndarray[float], img_path:str, tile:int, Site:str,  label:str, img_shape:tuple, config_plot, output_folder_path:str):
     num_layers, num_heads, num_patches, _ = sample_attn.shape
     patch_dim = int(np.sqrt(num_patches))
 
@@ -277,7 +264,7 @@ def __plot_attn(sample_attn: np.ndarray[float], img_path:str, tile:int, Site:str
     for layer_idx in range(num_layers):
         # Get attention for this layer and average over heads
         attn = sample_attn[layer_idx]  # (num_heads, num_patches+1, num_patches+1)
-        attn_map, heatmap_colored = __process_attn_map(attn, patch_dim, img_shape) #(img_shape
+        attn_map, heatmap_colored = __process_attn_map(attn, patch_dim, img_shape, config_plot.PLOT_HEATMAP_COLORMAP) #(img_shape
 
         # Green = nucleus
         # Blue = marker
@@ -287,33 +274,36 @@ def __plot_attn(sample_attn: np.ndarray[float], img_path:str, tile:int, Site:str
         attn_red[..., 0] = np.clip(attn_inverted, 0, 1) 
 
         # overlay attention with input fig using alpha for transpercy 
-        alpha = 0.45   
+        alpha = config_plot.ALPHA  
         attn_overlay = cv2.addWeighted(input_overlay, 1.0, attn_red, alpha, 0)
         attn_overlay_uint8 = (attn_overlay * 255).clip(0, 255).astype(np.uint8)
 
-        fig, ax = plt.subplots(1, 3, figsize=(12, 4))
-        ax[0].set_title(f'Input - Marker (blue), Nucleus (green)', fontsize=11)
+        fig, ax = plt.subplots(1, 3, figsize=config_plot.FIG_SIZE)
+        ax[0].set_title(f'Input - Marker (blue), Nucleus (green)', fontsize=config_plot.PLOT_TITLE_FONTSIZE)
         ax[0].imshow(input_overlay)
         ax[0].set_axis_off()
 
-        ax[1].set_title(f'Attention Heatmap', fontsize=11)
+        ax[1].set_title(f'Attention Heatmap', fontsize=config_plot.PLOT_TITLE_FONTSIZE)
         ax[1].imshow(heatmap_colored, cmap='hot')
         ax[1].set_axis_off()
 
-        ax[2].set_title(f'Attention Overlay', fontsize=11)
+        ax[2].set_title(f'Attention Overlay', fontsize=config_plot.PLOT_TITLE_FONTSIZE)
         ax[2].imshow(attn_overlay_uint8)
         ax[2].set_axis_off()
 
-        fig.suptitle(f"Site {Site} | Tile {tile} | Layer {layer_idx}\n{label}", fontsize=12)
+        fig.suptitle(f"Site {Site} | Tile {tile} | Layer {layer_idx}\n{label}", fontsize=config_plot.PLOT_SUPTITLE_FONTSIZE)
 
-        save_path = os.path.join(output_folder_path, f'site{Site}_tile{tile}_layer{layer_idx}.png')
-        plt.savefig(save_path, bbox_inches='tight', dpi=300)
-        plt.close()
+        if config_plot.SAVE_PLOT:
+            save_path = os.path.join(output_folder_path, f'site{Site}_tile{tile}_layer{layer_idx}.png')
+            plt.savefig(save_path, bbox_inches='tight', dpi=config_plot.PLOT_SAVEFIG_DPI)
+            plt.close()
+        if SAVE_PLOT.SHOW_PLOT:
+            plt.show()
 
         logging.info(f"[plot_attn_maps] attn maps saved: {save_path}")
 
 
-def __process_attn_map(attn, patch_dim, img_shape):# (num_heads, num_patches+1, num_patches+1)
+def __process_attn_map(attn, patch_dim, img_shape, heatmap_color = cv2.COLORMAP_JET):# (num_heads, num_patches+1, num_patches+1)
         avg_attn = attn.mean(axis=0)  # (num_patches+1, num_patches+1)
 
         # Take attention from CLS token to all other patches (assumes CLS is first)
@@ -328,208 +318,10 @@ def __process_attn_map(attn, patch_dim, img_shape):# (num_heads, num_patches+1, 
 
         # # Normalize for color mapping
         attn_norm = cv2.normalize(heatmap_resized, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        heatmap_colored = cv2.applyColorMap(attn_norm, cv2.COLORMAP_JET)
+        heatmap_colored = cv2.applyColorMap(attn_norm, heatmap_color)
 
         return heatmap_resized, heatmap_colored
 
-"""
-After constructung working plot_attn_map, use the follwoing function, based on 
-    NOVA_rotation/NOVA/src/figures/umap_plotting.py/plot_umap
-in order to use it in a "NOVA" like way 
-"""
-# def plot_attn_maps_fromumap(attn_maps: np.ndarray[float], labels: np.ndarray[str], config_data: DatasetConfig,
-#               config_plot: PlotConfig, saveroot: str, figsize: Tuple[int,int] = (6,5), cmap='tab20') -> None:
-
-#     if saveroot:
-#         os.makedirs(saveroot, exist_ok=True)
-#         save_config(config_data, saveroot)
-#         save_config(config_plot, saveroot)
-        
-#     markers = get_unique_parts_from_labels(labels, get_markers_from_labels)
-#     logging.info(f"[plot_attn_maps] Detected markers: {markers}")
-
-#     multiple_markers = False
-#     if multiple_markers:
-#         for marker in markers:
-#             logging.info(f"[plot_attn_maps]: Marker: {marker}")
-#             indices = np.where(np.char.startswith(labels.astype(str), f"{marker}_"))[0]
-#             logging.info(f"[plot_attn_maps]: {len(indices)} indexes have been selected")
-
-#             if marker == 'DAPI':
-#                 np.random.seed(config_plot.SEED)
-#                 indices = np.random.choice(indices, size=int(len(indices) * 0.25), replace=False)
-#                 logging.info(f"[plot_attn_maps]: {len(indices)} indexes have been selected after DAPI downsample")
-
-#             if len(indices) == 0:
-#                 logging.info(f"[plot_attn_maps] No data for marker {marker}, skipping.")
-#                 continue
-
-#             marker_attn_maps = attn_maps[indices]
-#             marker_labels = labels[indices].reshape(-1,)
-
-#             savepath = os.path.join(saveroot, f'{marker}') if saveroot else None
-#             label_data = map_labels(marker_labels, config_plot, config_data)
-            
-#             __plot_attn_maps(marker_attn_maps, label_data, config_data, config_plot, savepath=savepath, title=marker,
-#                                    ari_score=ari_score, figsize=figsize, cmap=cmap)
-#         return
-
-#     else:
-#         # Mode: All markers together
-#         #CHECK
-#         savepath = os.path.join(saveroot, '??') if saveroot else None
-
-    
-#     label_data = map_labels(labels, config_plot, config_data)
-    
-#     __plot_attn_maps(attn_maps, label_data, config_data, config_plot, savepath,
-#                            ari_score=ari_score, figsize=figsize, cmap=cmap)
-
-# def __plot_attn_maps(attn_maps: np.ndarray[float], 
-#                          label_data: np.ndarray[str], 
-#                          config_data: DatasetConfig,
-#                          config_plot: PlotConfig,
-#                          savepath: str = None,
-#                          title: str = None, 
-#                          dpi: int = 500, 
-#                          figsize: Tuple[int,int] = (6,5),
-#                          cmap:str = 'tab20'
-#                          ) -> None:
-#     """Plots UMAP embeddings with given labels and configurations.
-
-#     Args:
-#         umap_embeddings (np.ndarray[float]): The 2D UMAP embeddings to be plotted.
-#         label_data (np.ndarray[str]): Array of labels corresponding to the embeddings.
-#         config_data (DatasetConfig): Configuration data containing metric settings.
-#         config_plot (PlotConfig): Configuration plot containing visualization settings.
-#         savepath (str, optional): Path to save the plot. If None, the plot is shown interactively. Defaults to None.
-#         title (str, optional): Title for the plot. Defaults to 'UMAP projection of Embeddings'.
-#         dpi (int, optional): Dots per inch for the saved plot. Defaults to 300.
-#         figsize (Tuple[int, int], optional): Size of the figure. Defaults to (6, 5).
-#         cmap (str, optional): Colormap to be used. Defaults to 'tab20'.
-#         ari_score (float, optional): ari score to show on the umap. Defaults to None.
-
-#     Raises:
-#         ValueError: If the size of `umap_embeddings` and `label_data` are incompatible.
-
-#     Returns:
-#         None
-#     """
-#     if umap_embeddings.shape[0] != label_data.shape[0]:
-#         raise ValueError("The number of embeddings and labels must match.")
-
-#     name_color_dict =  config_plot.COLOR_MAPPINGS
-#     name_key = config_plot.MAPPINGS_ALIAS_KEY
-#     color_key = config_plot.MAPPINGS_COLOR_KEY
-#     marker_size = config_plot.SIZE
-#     to_color = get_if_exists(config_plot, 'TO_COLOR', None)
-#     show_metric = config_data.SHOW_ARI
-#     mix_groups = get_if_exists(config_plot, 'MIX_GROUPS', False)
-#     logging.info(f'mix_groups: {mix_groups}')
-#     unique_groups = np.unique(label_data)
-
-#     ordered_marker_names = get_if_exists(config_plot, 'ORDERED_MARKER_NAMES', None)
-#     if ordered_marker_names:
-#         # Get the indices of each element in 'unique_groups' according to 'ordered_marker_names'
-#         indices = [ordered_marker_names.index(item) for item in unique_groups]
-#         # Sort the unique_groups based on the indices
-#         unique_groups = unique_groups[np.argsort(indices)]
-
-#     fig = plt.figure(figsize=figsize, dpi=300)
-#     gs = GridSpec(2,1,height_ratios=[20,1])
-
-#     ax = fig.add_subplot(gs[0])
-#     indices = []
-#     colors = []
-#     for i, group in enumerate(unique_groups):
-#         alpha = config_plot.ALPHA
-#         logging.info(f'[_plot_attn_maps]: adding {group}')
-#         group_indices = np.where(label_data==group)[0]
-#         if group == 'DAPI':
-#             np.random.seed(config_plot.SEED)
-#             group_indices = np.random.choice(group_indices, size=int(len(group_indices) * 0.1), replace=False)
-#         # Get hex color and convert to RGBA
-#         if to_color is not None and group not in to_color:
-#             base_color = '#bab5b5'
-#             alpha = 0.2
-#         else:
-#             base_color = name_color_dict[group][color_key] if name_color_dict else plt.get_cmap(cmap)(i)
-
-#         rgba_color = mcolors.to_rgba(base_color, alpha=alpha)  # Convert hex to RGBA and apply alpha
-        
-#         # Create a color array for each point
-#         color_array = np.array([rgba_color] * group_indices.shape[0])
-
-#         label = name_color_dict[group][name_key] if name_color_dict else group
-#         if not mix_groups:
-#             ax.scatter(
-#                 umap_embeddings[group_indices, 0],
-#                 umap_embeddings[group_indices, 1],
-#                 s=marker_size,
-#                 alpha=alpha,
-#                 c=color_array,
-#                 marker = 'o',
-#                 label=label,
-#                 linewidths=0,
-#             )
-#             logging.info(f'[_plot_attn_maps]: adding label {label}')
-#         else:
-#             colors.append(color_array)
-#             indices.append(group_indices)
-    
-#     if mix_groups:
-#         colors = np.concatenate(colors)
-#         indices = np.concatenate(indices)
-#         shuffled_indices = np.random.permutation(len(indices))
-#         shuffled_colors = colors[shuffled_indices]
-#         shuffled_indices = indices[shuffled_indices]
-#         ax.scatter(
-#             umap_embeddings[shuffled_indices, 0],
-#             umap_embeddings[shuffled_indices, 1],
-#             s=marker_size,
-#             alpha=alpha,
-#             c=shuffled_colors,
-#             marker = 'o',
-#             linewidths=0,
-#         )                    
-#     __format_UMAP_axes(ax, title)
-#     if not mix_groups:
-#         __format_UMAP_legend(ax, marker_size)
-        
-#     if show_metric:
-#         gs_bottom = fig.add_subplot(gs[1])
-#         ax = __get_metrics_figure(ari_score, ax=gs_bottom)
-    
-#     fig.tight_layout()
-#     if savepath:
-#         save_plot(fig, savepath, dpi, save_eps=True)
-#     else:
-#         plt.show()
-        
-#     return fig, ax
-
-# def __format_UMAP_axes(ax:Axes, title:str)->None:
-#     ax.spines['top'].set_visible(False)
-#     ax.spines['right'].set_visible(False)
-#     ax.set_xlabel('UMAP1')
-#     ax.set_ylabel('UMAP2')
-#     ax.set_title(title)
-    
-#     ax.set_xticklabels([]) 
-#     ax.set_yticklabels([]) 
-#     ax.set_xticks([]) 
-#     ax.set_yticks([]) 
-#     return
-
-# def __format_UMAP_legend(ax:Axes, marker_size: int) -> None:
-#     """Formats the legend in the plot."""
-#     handles, labels = ax.get_legend_handles_labels()
-#     leg = ax.legend(handles, labels, prop={'size': 6},
-#                     bbox_to_anchor=(1, 1), loc='upper left',
-#                     ncol=1 + len(labels) // 26, frameon=False)
-#     for handle in leg.legendHandles:
-#         handle.set_alpha(1)
-#         handle.set_sizes([max(6, marker_size)])
 
 
 if __name__ == "__main__":
