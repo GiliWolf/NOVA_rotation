@@ -27,10 +27,10 @@ def display_labels(df:pd.DataFrame, save_dir: str = None):
         save_path = os.path.join(save_dir, f"labels.csv")
         df.to_csv(save_path, index=False)
 
-def load_npy_to_df(input_dir, file_name):
+def load_npy_to_df(input_dir, file_name, columns= None):
     path = os.path.join(input_dir, file_name)
     data = np.load(path, allow_pickle=True)
-    df = pd.DataFrame(data)
+    df = pd.DataFrame(data, columns = columns)
     return df
 
 def load_npy_to_nparray(input_dir, file_name):

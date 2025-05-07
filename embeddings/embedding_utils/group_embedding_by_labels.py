@@ -3,79 +3,69 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import sys
 import os
+sys.path.insert(0, os.getenv("HOME"))
+from NOVA_rotation.load_files.load_data_from_npy import load_npy_to_df, load_npy_to_nparray
 
-#init paths
+# init paths and parameteres
 home_dir = os.getenv("HOME")
 emb_out_dir = "NOVA_rotation/embeddings/embedding_output"
 run_name = "RotationDatasetConfig_New_paths"
 embd_dir  = os.path.join(home_dir, emb_out_dir, run_name, "embeddings/neurons/batch9")
 output_dir = os.path.join(home_dir, emb_out_dir, run_name, "grouped_embedding")
+data_set_types = ['testset'] # OR ['trainset','valset','testset']
 os.makedirs(output_dir, exist_ok=True)
 
-# load data
-label_path = os.path.join(embd_dir, "testset_labels.npy")
-labels = np.load(label_path)
-
-paths_path = os.path.join(embd_dir, "testset_paths.npy")
-paths = np.load(paths_path)
-paths_df = pd.DataFrame(paths, columns=['Path'])
-
-embed_path = os.path.join(embd_dir, "testset.npy")
-embeddings = np.load(embed_path)
-embeddings_df = pd.DataFrame(embeddings)
 
 
-# Convert to pandas DataFrame
-labels_df = pd.DataFrame(labels, columns=['full_label'])
+def filter_and_save(labels_df:pd.DataFrame, embeddings_df:pd.DataFrame,paths_df:pd.DataFrame, condition:str, treatment:str, output_dir:str=None):
+    # extract labels and indices
+    filtered_labels= labels_df[
+    (labels_df['condition'] == condition) &
+    (labels_df['treatment'] == treatment)
+    ]
 
-#split to groups
-labels_df[['protein', 'condition', 'treatment', 'batch', 'replicate']] = labels_df['full_label'].str.split('_', expand=True)
-grouped = labels_df.groupby(['protein', 'condition', 'treatment'])
-print("\nlabels groups:")
-print(grouped.size())
+    # extract data 
+    print(f"\n{condition}_{treatment}_labels:")
+    print(filtered_labels.shape)
 
+    print(f"\n{condition}_{treatment}_embeddings:")
+    filtered_embeddings = embeddings_df.iloc[filtered_labels.index]
+    print(filtered_embeddings.shape)
 
-# WT UNTREATED 
+    print(f"\n{condition}_{treatment}_paths:")
+    filtered_paths = paths_df.iloc[filtered_labels.index]
+    print(filtered_paths.shape)
 
-wt_untreated_labels= labels_df[
-    (labels_df['condition'] == 'WT') &
-    (labels_df['treatment'] == 'Untreated')
-]
-print("\nwt_untreated_labels:")
-print(wt_untreated_labels.shape)
+    # save
+    if output_dir:
+        filtered_labels["full_label"].to_csv(os.path.join(output_dir, f"{condition}_{treatment}_labels.csv"), index=False)
+        np.save(os.path.join(output_dir, f"{condition}_{treatment}_embedding.npy"),  filtered_embeddings.to_numpy())
+        filtered_paths.to_csv(os.path.join(output_dir, f"{condition}_{treatment}_paths.csv"), index=False)
 
-print("\nwt_untreated_embeddings:")
-wt_untreated_embeddings = embeddings_df.iloc[wt_untreated_labels.index]
-print(wt_untreated_embeddings.shape)
-
-print("\nwt_untreated_paths:")
-wt_untreated_paths = paths_df.iloc[wt_untreated_labels.index]
-print(wt_untreated_paths.shape)
-
-#save
-wt_untreated_labels["full_label"].to_csv(os.path.join(output_dir, "wt_untreated_labels.csv"), index=False)
-np.save(os.path.join(output_dir, "wt_untreated_embedding.npy"),  wt_untreated_embeddings.to_numpy())
-wt_untreated_paths.to_csv(os.path.join(output_dir, "wt_untreated_paths.csv"), index=False)
+    return filtered_labels, filtered_embeddings, filtered_paths
 
 
-# WT stress 
-wt_stress_labels= labels_df[
-    (labels_df['condition'] == 'WT') &
-    (labels_df['treatment'] == 'stress')
-]
-print("\nwt_stress_labels:")
-print(wt_stress_labels.shape)
 
-print("\nwt_stress_embeddings:")
-wt_stress_embeddings = embeddings_df.iloc[wt_stress_labels.index]
-print(wt_stress_embeddings.shape)
+if __name__ == "__main__":
+    for i, set_type in enumerate(data_set_types):
+            # load data
+            labels_df = load_npy_to_df(embd_dir,f"{set_type}_labels.npy", columns=['full_label'])
+            paths_df = load_npy_to_df(embd_dir, f"{set_type}_paths.npy", columns=['Path'])
+            embeddings_df = load_npy_to_df(embd_dir, f"{set_type}.npy")
 
-print("\nwt_stress_paths:")
-wt_stress_paths = paths_df.iloc[wt_stress_labels.index]
-print(wt_stress_paths.shape)
 
-#save
-wt_stress_labels["full_label"].to_csv(os.path.join(output_dir, "wt_stress_labels.csv"), index=False)
-np.save(os.path.join(output_dir, "wt_stress_embedding.npy"),  wt_stress_embeddings.to_numpy())
-wt_stress_paths.to_csv(os.path.join(output_dir, "wt_stress_paths.csv"), index=False)
+            # split to groups
+            labels_df[['protein', 'condition', 'treatment', 'batch', 'replicate']] = labels_df['full_label'].str.split('_', expand=True)
+            grouped = labels_df.groupby(['protein', 'condition', 'treatment'])
+            print("\nlabels groups:")
+            print(grouped.size())
+
+            temp_output_dir = os.path.join(output_dir, set_type)
+            os.makedirs(temp_output_dir, exist_ok = True)
+            filter_and_save(labels_df, embeddings_df,paths_df, condition = "WT", treatment="Untreated", output_dir = temp_output_dir)
+            filter_and_save(labels_df, embeddings_df,paths_df, condition = "WT", treatment="stress", output_dir = temp_output_dir)
+
+
+
+
 

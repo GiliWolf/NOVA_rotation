@@ -53,7 +53,7 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     attn_maps, labels, paths = generate_attn_maps(model, config_data, batch_size=batch_size)
     
     # OUTPUT 
-    outputs_folder_path = "/home/labs/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output/RotationDatasetConfig_Pairs_2"
+    outputs_folder_path = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output/RotationDatasetConfig_Pairs_New_paths"
     saveroot = outputs_folder_path
 
     # CHECK WHAT TO KEEP 
@@ -68,7 +68,7 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     # logging.info(f'saveroot: {saveroot}')
 
     # extract samples to plot and save 
-    pairs_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/pairs"
+    pairs_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig_New_paths/pairs"
 
     # filter by path names 
     samples_indices = __extract_indices_to_plot(keep_samples_dir=pairs_dir, paths = paths, data_config = config_data)
@@ -204,6 +204,7 @@ def __extract_samples_to_plot(sampels: np.ndarray[str], indices:list, data_confi
         curr_samples, curr_indices = sampels[i], indices[i]
         filtered_samples = curr_samples[curr_indices]
         all_filtered_sampels.append(filtered_samples)
+        
     
     return all_filtered_sampels
 
@@ -249,17 +250,17 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
 
         img_path_df = parse_paths(cur_paths)
 
-        # Extract attention and label for the sample
-        logging.info(f"[plot_attn_maps] starting plotting {len(paths)} samples.")
+        logging.info(f'[plot_attn_maps]: for set {set_type}, starting plotting {len(cur_paths)} samples.')
+        
         for index, (sample_attn, label, img_path) in enumerate(zip(cur_attn_maps, cur_labels, cur_paths)):
             # load img details
             path_item = img_path_df.iloc[index]
-            img_path, tile, site = Parse_Path_Item(path)
+            img_path, tile, site = Parse_Path_Item(path_item)
 
             # plot
             temp_output_folder_path = os.path.join(output_folder_path, set_type, os.path.basename(img_path).split('.npy')[0])
             os.makedirs(temp_output_folder_path, exist_ok=True)
-            __plot_attn(sample_attn, img_path, tile, Site, label, img_shape, temp_output_folder_path)
+            __plot_attn(sample_attn, img_path, tile, site, label, img_shape, temp_output_folder_path)
 
 def __plot_attn(sample_attn: np.ndarray[float], img_path:str, tile:int, Site:str,  label:str, img_shape:tuple, output_folder_path:str):
     num_layers, num_heads, num_patches, _ = sample_attn.shape
