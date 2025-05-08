@@ -2,6 +2,7 @@ import os
 import sys
 import matplotlib.pyplot as plt
 import cv2
+from PIL import Image
 sys.path.insert(0, os.getenv("HOME"))
 sys.path.insert(1, os.getenv("NOVA_HOME"))
 
@@ -62,6 +63,7 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     plot_attn_maps(attn_maps, labels, paths, config_data, config_plot, output_folder_path=os.path.join(outputs_folder_path, "figures"))
 
     # save the raw attn_map (AFTER FILTERING)
+    # save att map according to ATTN_METHOD
     save_attn_maps(attn_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "raw"))
 
 
@@ -249,58 +251,7 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
             __plot_attn(sample_attn, img_path, (site, tile, label), img_shape, config_plot, temp_output_folder_path)
 
 
-def __plot_attn_old(sample_attn: np.ndarray[float], img_path:str, sample_info, img_shape:tuple, config_plot, output_folder_path:str):
-    num_layers, num_heads, num_patches, _ = sample_attn.shape
-    patch_dim = int(np.sqrt(num_patches))
 
-    marker, nucleus, input_overlay = load_tile(img_path, tile)
-    assert marker.shape == nucleus.shape == img_shape
-
-    logging.info(f"[plot_attn_maps] extracting sample image path: {os.path.basename(img_path)}")
-    logging.info(f"[plot_attn_maps] extracting sample label: {label}")
-    logging.info(f"[plot_attn_maps] dimensions: {num_layers} layers, {num_heads} heads, {num_patches} patches, {img_shape} img_shape")
-    
-
-    for layer_idx in range(num_layers):
-        # Get attention for this layer and average over heads
-        attn = sample_attn[layer_idx]  # (num_heads, num_patches+1, num_patches+1)
-        attn_map, heatmap_colored = __process_attn_map(attn, patch_dim, img_shape, config_plot.PLOT_HEATMAP_COLORMAP) #(img_shape
-
-        # Green = nucleus
-        # Blue = marker
-        # red = attn map
-        attn_red = np.zeros_like(input_overlay)
-        attn_inverted = 1.0 - attn_map  # higher attention => deeper red
-        attn_red[..., 0] = np.clip(attn_inverted, 0, 1) 
-
-        # overlay attention with input fig using alpha for transpercy 
-        alpha = config_plot.ALPHA  
-        attn_overlay = cv2.addWeighted(input_overlay, 1.0, attn_red, alpha, 0)
-        attn_overlay_uint8 = (attn_overlay * 255).clip(0, 255).astype(np.uint8)
-
-        fig, ax = plt.subplots(1, 3, figsize=config_plot.FIG_SIZE)
-        ax[0].set_title(f'Input - Marker (blue), Nucleus (green)', fontsize=config_plot.PLOT_TITLE_FONTSIZE)
-        ax[0].imshow(input_overlay)
-        ax[0].set_axis_off()
-
-        ax[1].set_title(f'Attention Heatmap', fontsize=config_plot.PLOT_TITLE_FONTSIZE)
-        ax[1].imshow(heatmap_colored, cmap='hot')
-        ax[1].set_axis_off()
-
-        ax[2].set_title(f'Attention Overlay', fontsize=config_plot.PLOT_TITLE_FONTSIZE)
-        ax[2].imshow(attn_overlay_uint8)
-        ax[2].set_axis_off()
-
-        fig.suptitle(f"Site {site} | Tile {tile} | Layer {layer_idx}\n{label}", fontsize=config_plot.PLOT_SUPTITLE_FONTSIZE)
-
-        if config_plot.SAVE_PLOT:
-            save_path = os.path.join(output_folder_path, f'Site{site}_tile{tile}_layer{layer_idx}.png')
-            plt.savefig(save_path, bbox_inches='tight', dpi=config_plot.PLOT_SAVEFIG_DPI)
-            plt.close()
-        if SAVE_PLOT.SHOW_PLOT:
-            plt.show()
-
-        logging.info(f"[plot_attn_maps] attn maps saved: {save_path}")
 
 def __plot_attn(sample_attn: np.ndarray[float], img_path:str, sample_info:tuple, img_shape:tuple, config_plot, output_folder_path:str):
     num_layers, num_heads, num_patches, _ = sample_attn.shape
@@ -359,7 +310,7 @@ def __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, sup
         # red = attn map
         attn_red = np.zeros_like(input_img)
         attn_inverted = 1.0 - attn_map  # higher attention => deeper red
-        attn_red[..., 0] = np.clip(attn_inverted, 0, 1) 
+        attn_red[..., 0] = np.clip(attn_inverted, 0, 1)     
 
         # overlay attention with input fig using alpha for transpercy 
         alpha = config_plot.ALPHA  
@@ -407,7 +358,7 @@ def __process_attn_map(attn, patch_dim, img_shape, heatmap_color = cv2.COLORMAP_
                 heatmap_color: int for cv2 coloring of the attention heatmap
 
             return:
-                heatmap_resized: attention map processed into original img_shape (H,W)
+                attn_resized: attention map processed into original img_shape (H,W)
                 heatmap_colored: attention map colored by heatmap_color (3,H,W)
 
         """
@@ -420,13 +371,23 @@ def __process_attn_map(attn, patch_dim, img_shape, heatmap_color = cv2.COLORMAP_
         attn_heatmap = (cls_attn_map - cls_attn_map.min()) / (cls_attn_map.max() - cls_attn_map.min() + 1e-6)
 
         # Resize to match image size
-        heatmap_resized = cv2.resize(attn_heatmap, img_shape)
+        heatmap_resized = Image.fromarray((attn_heatmap * 255).astype(np.uint8)).resize(img_shape, resample=Image.BICUBIC)
+        heatmap_resized = np.array(heatmap_resized).astype(np.uint8)
+        attn_resized = np.array(heatmap_resized).astype(np.float32) / 255.0  # Rescale to [0,1] float
 
-        # # Normalize for color mapping
-        attn_norm = cv2.normalize(heatmap_resized, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-        heatmap_colored = cv2.applyColorMap(attn_norm, heatmap_color)
+        # Apply colormap
+        heatmap_colored = cv2.applyColorMap(heatmap_resized, heatmap_color)
 
-        return heatmap_resized, heatmap_colored
+        #DUBUG
+        # max_coord = np.unravel_index(np.argmax(attn_heatmap), attn_heatmap.shape)
+        # min_coord = np.unravel_index(np.argmin(attn_heatmap), attn_heatmap.shape)
+        # max_color = heatmap_colored[max_coord[0], max_coord[1]]  # OpenCV uses (y, x)
+        # min_color = heatmap_colored[min_coord[0], min_coord[1]]
+
+        # print(f"Max attention color at {max_coord}: {max_color}")
+        # print(f"Min attention color at {min_coord}: {min_color}")
+
+        return attn_resized, heatmap_colored
 
 def __attn_map_all_layers(attn):
     """ average attention across heads, for each layer.

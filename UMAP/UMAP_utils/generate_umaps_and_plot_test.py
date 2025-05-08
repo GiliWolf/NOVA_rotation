@@ -31,10 +31,12 @@ def generate_umaps(output_folder_path:str, config_path_data:str, config_path_plo
     config_plot:PlotConfig = load_config_file(config_path_plot, 'plot')
     # CHANGED: 
     #embeddings, labels, paths = load_embeddings(output_folder_path, config_data)
-    input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig"
-    embeddings_folder = os.path.join(input_dir,"pairs/testset")
-    embeddings, labels, paths = load_npy_to_nparray(embeddings_folder, "testset.npy"), load_npy_to_nparray(embeddings_folder, "testset_labels.npy"), load_npy_to_nparray(embeddings_folder, "testset_paths.npy")
-
+    #**input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig"
+    input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output/RotationDatasetConfig_Rollout/raw/attn_maps/neurons/batch9"
+    #**embeddings_folder = os.path.join(input_dir,"pairs/testset")
+    embeddings_folder = os.path.join(input_dir)
+    #**embeddings, labels, paths = load_npy_to_nparray(embeddings_folder, "testset.npy"), load_npy_to_nparray(embeddings_folder, "testset_labels.npy"), load_npy_to_nparray(embeddings_folder, "testset_paths.npy")
+    embeddings, labels, paths = load_npy_to_nparray(embeddings_folder, "testset_attn.npy"), load_npy_to_nparray(embeddings_folder, "testset_labels.npy"), load_npy_to_nparray(embeddings_folder, "testset_paths.npy")
     umap_idx = get_if_exists(config_plot, 'UMAP_TYPE', None)
     if umap_idx not in analyzer_mapping:
         raise ValueError(f"Invalid UMAP index: {umap_idx}. Must be one of {list(analyzer_mapping.keys())}, and defined in plot config.")
@@ -55,7 +57,7 @@ def generate_umaps(output_folder_path:str, config_path_data:str, config_path_plo
     # if to_color is not None:
     #     saveroot += f'_coloring_{to_color[0].split("_")[0]}'
 
-    umap_outdir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/UMAP/UMAP_output"
+    umap_outdir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/UMAP/from_attn_maps"
     run_name = "Pairs_WT-G3BP1-stress_untreated"
     saveroot = os.path.join(umap_outdir, run_name)
     os.makedirs(saveroot, exist_ok=True)

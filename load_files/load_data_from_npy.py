@@ -176,9 +176,6 @@ def display_tile(Site:str, tile:int, marker:np.array, nucleus:np.array, overlay:
 
 
 if __name__ == "__main__":
-    path = "/home/projects/hornsteinlab/Collaboration/MOmaps/outputs/vit_models/finetuned_model/embeddings/neurons/batch9"
-    emb = load_embeddings_from_npy(path, "testset")
-
-    path2 = "/home/labs/hornsteinlab/Collaboration/MOmaps/outputs/vit_models/finetuned_model/embeddings/neurons/batch9"
-    em2 = load_embeddings_from_npy(path2, "testset")
-    print(np.array_equal(emb, em2))
+    input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output/RotationDatasetConfig_Rollout/raw/attn_maps/neurons/batch9"
+    emb = load_npy_to_nparray(input_dir, "testset_attn.npy")
+    print(emb.shape)

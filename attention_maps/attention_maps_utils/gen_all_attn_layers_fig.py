@@ -11,8 +11,10 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import matplotlib
 
-attn_maps_dir = "./NOVA_rotation/attention_maps/attention_maps_output/RotationDatasetConfig_Pairs/raw/attn_maps/neurons/batch9"
-save_dir = "./NOVA_rotation/attention_maps/attention_maps_output/RotationDatasetConfig_Pairs/layers"
+run_name = "RotationDatasetConfig_Pair"
+input_dir = "./NOVA_rotation/attention_maps/attention_maps_output"
+attn_maps_dir = os.path.join(input_dir, run_name, "/raw/attn_maps/neurons/batch9")
+save_dir =  os.path.join(input_dir, run_name,"layers")
 
 def init_globals(attn_maps):
     global num_samples, num_layers, num_heads, num_patches, img_shape, patch_dim
@@ -71,12 +73,8 @@ def extract_path(paths, path_to_plot):
 
 
 def main():
-    """
-    1 - CHANGE SAVING PATH - V
-    2 - ADD INFORMATIVE TITLE - V
-    3 - ADD SELECTION OF IMG BASED ON ITS PATH
-    """
-    img_input_dir = "/home/labs/hornsteinlab/Collaboration/MOmaps/input/images/processed/spd2/SpinningDisk"
+
+    img_input_dir = "/home/projects/hornsteinlab/Collaboration/MOmaps/input/images/processed/spd2/SpinningDisk"
     path_name_to_plot = "batch9/WT/Untreated/G3BP1/rep1_R11_w3confCy5_s208_panelA_WT_processed.npy/4"
     path_to_plot = os.path.join(img_input_dir, path_name_to_plot)
 
