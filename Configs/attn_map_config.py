@@ -35,5 +35,9 @@ class PlotAttnMapConfig(BaseConfig):
         # Path to the dir containing the samples  ("set_type_paths.npy" file) to be selectively plotted
         self.SAMPLES_PATH:str = None 
 
+        # attention method 
+        self.ATTN_METHOD:str = None 
+
+
     
         

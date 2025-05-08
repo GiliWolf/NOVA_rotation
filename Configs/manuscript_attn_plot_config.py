@@ -30,3 +30,6 @@ class InitialAttnMapPlotConfig(PlotAttnMapConfig):
         self.SHOW_PLOT:bool = False
 
         self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/pairs"
+
+        # attention method 
+        self.ATTN_METHOD:str = "rollout"

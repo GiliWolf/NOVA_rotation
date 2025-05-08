@@ -51,7 +51,7 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     
     # OUTPUT 
     input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation"
-    run_name = "RotationDatasetConfig"
+    run_name = "RotationDatasetConfig_Rollout"
     outputs_folder_path = os.path.join(input_dir, "attention_maps/attention_maps_output", run_name)
 
     # filter by path names 
@@ -246,10 +246,10 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
             # plot
             temp_output_folder_path = os.path.join(output_folder_path, set_type, os.path.basename(img_path).split('.npy')[0])
             os.makedirs(temp_output_folder_path, exist_ok=True)
-            __plot_attn(sample_attn, img_path, tile, site, label, img_shape, config_plot, temp_output_folder_path)
+            __plot_attn(sample_attn, img_path, (site, tile, label), img_shape, config_plot, temp_output_folder_path)
 
 
-def __plot_attn(sample_attn: np.ndarray[float], img_path:str, tile:int, Site:str,  label:str, img_shape:tuple, config_plot, output_folder_path:str):
+def __plot_attn_old(sample_attn: np.ndarray[float], img_path:str, sample_info, img_shape:tuple, config_plot, output_folder_path:str):
     num_layers, num_heads, num_patches, _ = sample_attn.shape
     patch_dim = int(np.sqrt(num_patches))
 
@@ -291,10 +291,10 @@ def __plot_attn(sample_attn: np.ndarray[float], img_path:str, tile:int, Site:str
         ax[2].imshow(attn_overlay_uint8)
         ax[2].set_axis_off()
 
-        fig.suptitle(f"Site {Site} | Tile {tile} | Layer {layer_idx}\n{label}", fontsize=config_plot.PLOT_SUPTITLE_FONTSIZE)
+        fig.suptitle(f"Site {site} | Tile {tile} | Layer {layer_idx}\n{label}", fontsize=config_plot.PLOT_SUPTITLE_FONTSIZE)
 
         if config_plot.SAVE_PLOT:
-            save_path = os.path.join(output_folder_path, f'site{Site}_tile{tile}_layer{layer_idx}.png')
+            save_path = os.path.join(output_folder_path, f'Site{site}_tile{tile}_layer{layer_idx}.png')
             plt.savefig(save_path, bbox_inches='tight', dpi=config_plot.PLOT_SAVEFIG_DPI)
             plt.close()
         if SAVE_PLOT.SHOW_PLOT:
@@ -302,12 +302,118 @@ def __plot_attn(sample_attn: np.ndarray[float], img_path:str, tile:int, Site:str
 
         logging.info(f"[plot_attn_maps] attn maps saved: {save_path}")
 
+def __plot_attn(sample_attn: np.ndarray[float], img_path:str, sample_info:tuple, img_shape:tuple, config_plot, output_folder_path:str):
+    num_layers, num_heads, num_patches, _ = sample_attn.shape
+    patch_dim = int(np.sqrt(num_patches))
 
-def __process_attn_map(attn, patch_dim, img_shape, heatmap_color = cv2.COLORMAP_JET):# (num_heads, num_patches+1, num_patches+1)
-        avg_attn = attn.mean(axis=0)  # (num_patches+1, num_patches+1)
+    _, tile, label = sample_info
+
+    marker, nucleus, input_overlay = load_tile(img_path, tile)
+    assert marker.shape == nucleus.shape == img_shape
+
+    logging.info(f"[plot_attn_maps] extracting sample image path: {os.path.basename(img_path)}")
+    logging.info(f"[plot_attn_maps] extracting sample label: {label}")
+    logging.info(f"[plot_attn_maps] dimensions: {num_layers} layers, {num_heads} heads, {num_patches} patches, {img_shape} img_shape")
+
+    attn_method = config_plot.ATTN_METHOD
+    globals()[f"_plot_attn_map_{attn_method}"](sample_attn, sample_info, patch_dim, input_overlay, img_shape, config_plot, output_folder_path)
+
+def _plot_attn_map_all_layers(attn, sample_info, patch_dim, input_img, img_shape, config_plot, output_folder_path):
+    site, tile, label = sample_info
+    attn = __attn_map_all_layers(attn)
+    for layer_idx in range(num_layers):
+        layer_attn = attn[layer_idx]
+        layer_attn_map, heatmap_colored = __process_attn_map(layer_attn, patch_dim, img_shape, heatmap_color=config_plot.PLOT_HEATMAP_COLORMAP)
+        __create_attn_map_img(layer_attn_map, input_img, heatmap_colored, config_plot, sup_title =f"Site{site}_Tile{tile}_Layer{layer_idx}\n{label}",  output_folder_path=output_folder_path)
+
+
+def _plot_attn_map_rollout(attn, sample_info, patch_dim, input_img, img_shape, config_plot, output_folder_path):
+    site, tile, label = sample_info
+    attn = __attn_map_rollout(attn)
+    attn_map, heatmap_colored = __process_attn_map(attn, patch_dim, img_shape, heatmap_color=config_plot.PLOT_HEATMAP_COLORMAP)
+    __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, sup_title= f"Site{site}_Tile{tile}_Rollout\n{label}", output_folder_path= output_folder_path)
+
+
+
+def __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, sup_title = "Attention Maps", output_folder_path = None):
+        """
+            Create attention map img with:
+                (1) input image 
+                (2) attention heatmap
+                (3) attention overlay on the input img
+            ** save/plot according to config_plot
+
+            parameters:
+                attn_map: attention maps values, already in the img shape (H,W)
+                input_img: input img with marker and nucleus overlay (3,H,W)
+                            ** assuming  Green = nucleus, Blue = marker, Red = zeroed out
+                heatmap_colored: attention map colored by heatmap_color (3,H,W)
+                config_plot: config with the plotting parameters 
+                output_folder_path: for saving the output img.
+
+            return:
+                fig: matplot fig created. 
+        """
+        # Green = nucleus
+        # Blue = marker
+        # red = attn map
+        attn_red = np.zeros_like(input_img)
+        attn_inverted = 1.0 - attn_map  # higher attention => deeper red
+        attn_red[..., 0] = np.clip(attn_inverted, 0, 1) 
+
+        # overlay attention with input fig using alpha for transpercy 
+        alpha = config_plot.ALPHA  
+        attn_overlay = cv2.addWeighted(input_img, 1.0, attn_red, alpha, 0)
+        attn_overlay_uint8 = (attn_overlay * 255).clip(0, 255).astype(np.uint8)
+
+        fig, ax = plt.subplots(1, 3, figsize=config_plot.FIG_SIZE)
+        ax[0].set_title(f'Input - Marker (blue), Nucleus (green)', fontsize=config_plot.PLOT_TITLE_FONTSIZE)
+        ax[0].imshow(input_img)
+        ax[0].set_axis_off()
+
+        ax[1].set_title(f'Attention Heatmap', fontsize=config_plot.PLOT_TITLE_FONTSIZE)
+        ax[1].imshow(heatmap_colored, cmap='hot')
+        ax[1].set_axis_off()
+
+        ax[2].set_title(f'Attention Overlay', fontsize=config_plot.PLOT_TITLE_FONTSIZE)
+        ax[2].imshow(attn_overlay_uint8)
+        ax[2].set_axis_off()
+
+        fig.suptitle(sup_title, fontsize=config_plot.PLOT_SUPTITLE_FONTSIZE)
+
+        if config_plot.SAVE_PLOT and (output_folder_path is not None):
+            fig_name  = sup_title.split('\n', 1)[0] #either till the end of the line or the full str
+            save_path = os.path.join(output_folder_path, f"{fig_name}.png")
+            plt.savefig(save_path, bbox_inches='tight', dpi=config_plot.PLOT_SAVEFIG_DPI)
+            plt.close()
+        if config_plot.SHOW_PLOT:
+            plt.show()
+
+        logging.info(f"[plot_attn_maps] attn maps saved: {save_path}")
+
+        return fig
+
+def __process_attn_map(attn, patch_dim, img_shape, heatmap_color = cv2.COLORMAP_JET):
+        """
+            process attn map:
+                (1) extract cls token attn to other pathces
+                (2) normalize
+                (3) resize to fit image shape
+        
+            parameteres:
+                attn: attention map of shape (num_patches, num_patches)
+                patch_dim: square root of num_patches to resize the attention vector into a square.
+                img_shape: original img_shape (H, W)
+                heatmap_color: int for cv2 coloring of the attention heatmap
+
+            return:
+                heatmap_resized: attention map processed into original img_shape (H,W)
+                heatmap_colored: attention map colored by heatmap_color (3,H,W)
+
+        """
 
         # Take attention from CLS token to all other patches (assumes CLS is first)
-        cls_attn = avg_attn[0, 1:] # (num_patches)
+        cls_attn = attn[0, 1:] # (num_patches)
         cls_attn_map = cls_attn.reshape(patch_dim, patch_dim) # reshape to square 
 
         # Normalize attention for heatmap
@@ -321,6 +427,42 @@ def __process_attn_map(attn, patch_dim, img_shape, heatmap_color = cv2.COLORMAP_
         heatmap_colored = cv2.applyColorMap(attn_norm, heatmap_color)
 
         return heatmap_resized, heatmap_colored
+
+def __attn_map_all_layers(attn):
+    """ average attention across heads, for each layer.
+
+    parameteres:
+        attn: attention values of shape: (num_layers, num_heads, num_patches, num_patches)
+
+    return:
+        avg_attn: attention map per layer: (num_layers, num_patches, num_patches)
+    """
+    avg_attn = attn.mean(axis=1)
+    return avg_attn
+
+def __attn_map_rollout(attn):
+    """  aggregates attention maps across multiple layers, using the rollout method:
+
+    parameteres:
+        attn: attention values of shape: (num_layers, num_heads, num_patches, num_patches)
+
+    returns:
+        rollout: attention map for all layers and heads: (num_patches, num_patches)
+    """
+
+    # Initialize rollout with identity matrix
+    rollout = np.eye(attn[0].shape[-1]) #(num_patches, num_patches)
+
+    # Multiply attention maps layer by layer
+    for layer_attn in attn:
+        # CHECK layer_attn shape
+        attention_heads_fused = layer_attn.mean(axis=0) # Average attention across heads = A
+        attention_heads_fused += np.eye(attention_heads_fused.shape[-1]) # A + I
+        attention_heads_fused /= attention_heads_fused.sum(axis=-1, keepdims=True) # Normalizing A
+        rollout = rollout @ attention_heads_fused  # Matrix multiplication
+    
+    return rollout
+
 
 
 
