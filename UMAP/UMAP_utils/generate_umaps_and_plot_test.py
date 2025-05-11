@@ -57,8 +57,8 @@ def generate_umaps(output_folder_path:str, config_path_data:str, config_path_plo
     # if to_color is not None:
     #     saveroot += f'_coloring_{to_color[0].split("_")[0]}'
 
-    umap_outdir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/UMAP/from_attn_maps"
-    run_name = "Pairs_WT-G3BP1-stress_untreated"
+    umap_outdir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/UMAP/UMAP_output/from_attn_maps"
+    run_name = "Rollout_Raw_Pairs_WT-G3BP1-stress_untreated"
     saveroot = os.path.join(umap_outdir, run_name)
     os.makedirs(saveroot, exist_ok=True)
     logging.info(f'saveroot: {saveroot}')

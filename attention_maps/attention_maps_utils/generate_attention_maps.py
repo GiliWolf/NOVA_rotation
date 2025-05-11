@@ -52,7 +52,7 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     
     # OUTPUT 
     input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation"
-    run_name = "RotationDatasetConfig_Rollout"
+    run_name = "RotationDatasetConfig_Pairs"
     outputs_folder_path = os.path.join(input_dir, "attention_maps/attention_maps_output", run_name)
 
     # filter by path names 
@@ -60,11 +60,15 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     attn_maps = __extract_samples_to_plot(attn_maps, samples_indices, data_config = config_data)
     labels = __extract_samples_to_plot(labels, samples_indices, data_config = config_data)
     paths = __extract_samples_to_plot(paths, samples_indices, data_config = config_data)
-    plot_attn_maps(attn_maps, labels, paths, config_data, config_plot, output_folder_path=os.path.join(outputs_folder_path, "figures"))
 
     # save the raw attn_map (AFTER FILTERING)
-    # save att map according to ATTN_METHOD
-    save_attn_maps(attn_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "raw"))
+    save_attn_maps(attn_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "raw")) #attn_method=config_plot.ATTN_METHOD??
+ 
+    # process and plot attn_maps (AFTER FILTERING)
+    proccesed_attn_maps = plot_attn_maps(attn_maps, labels, paths, config_data, config_plot, output_folder_path=os.path.join(outputs_folder_path, "figures"))
+
+    # save the processed attn_map (AFTER FILTERING)
+    save_attn_maps(proccesed_attn_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "processed"))
 
 
 def generate_attn_maps(model:NOVAModel, config_data:DatasetConfig, 
@@ -117,7 +121,10 @@ def generate_attn_maps(model:NOVAModel, config_data:DatasetConfig,
 
 def save_attn_maps(attn_maps:List[np.ndarray[torch.Tensor]], 
                     labels:List[np.ndarray[str]], paths:List[np.ndarray[str]],
-                    data_config:DatasetConfig, output_folder_path)->None:
+                    data_config:DatasetConfig, output_folder_path:str, attn_method:str = None)->None:
+    """
+        ** if attn_method is gover, process the attn_maps accordinly before saving 
+    """
 
     unique_batches = get_unique_parts_from_labels(labels[0], get_batches_from_labels, data_config)
     logging.info(f'[save_attn_maps] unique_batches: {unique_batches}')
@@ -142,7 +149,11 @@ def save_attn_maps(attn_maps:List[np.ndarray[torch.Tensor]],
                 if os.path.exists(os.path.join(batch_save_path,f'trainset_labels.npy')) or os.path.exists(os.path.join(batch_save_path,f'valset_labels.npy')):
                     logging.warning(f"[save_attn_maps] SPLIT_DATA={data_config.SPLIT_DATA} BUT there exists trainset or valset in folder {batch_save_path}!! make sure you don't overwrite the testset!!")
             logging.info(f"[save_attn_maps] Saving {len(batch_indexes)} in {batch_save_path}")
-            
+
+            # process attn maps according to the attn_method
+            if attn_method:
+                cur_attn_maps = globals()[f"__attn_map_{attn_method}"](cur_attn_maps, attn_layer_dim = 1)
+
             np.save(os.path.join(batch_save_path,f'{set_type}_labels.npy'), np.array(cur_labels[batch_indexes]))
             np.save(os.path.join(batch_save_path,f'{set_type}_attn.npy'), cur_attn_maps[batch_indexes])
             np.save(os.path.join(batch_save_path,f'{set_type}_paths.npy'), cur_paths[batch_indexes])
@@ -232,7 +243,7 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
     else:
         data_set_types = ['testset']
     
-
+    all_attn_maps = []
     for i, set_type in enumerate(data_set_types):
         cur_attn_maps, cur_labels, cur_paths = attn_maps[i], labels[i], paths[i]
 
@@ -240,6 +251,7 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
 
         logging.info(f'[plot_attn_maps]: for set {set_type}, starting plotting {len(cur_paths)} samples.')
         
+        set_attn_maps = []
         for index, (sample_attn, label, img_path) in enumerate(zip(cur_attn_maps, cur_labels, cur_paths)):
             # load img details
             path_item = img_path_df.iloc[index]
@@ -248,8 +260,11 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
             # plot
             temp_output_folder_path = os.path.join(output_folder_path, set_type, os.path.basename(img_path).split('.npy')[0])
             os.makedirs(temp_output_folder_path, exist_ok=True)
-            __plot_attn(sample_attn, img_path, (site, tile, label), img_shape, config_plot, temp_output_folder_path)
-
+            attn_map = __plot_attn(sample_attn, img_path, (site, tile, label), img_shape, config_plot, temp_output_folder_path)
+            set_attn_maps.append(attn_map)
+        set_attn_maps = np.stack(set_attn_maps)
+        all_attn_maps.append(set_attn_maps)
+    return all_attn_maps
 
 
 
@@ -267,22 +282,28 @@ def __plot_attn(sample_attn: np.ndarray[float], img_path:str, sample_info:tuple,
     logging.info(f"[plot_attn_maps] dimensions: {num_layers} layers, {num_heads} heads, {num_patches} patches, {img_shape} img_shape")
 
     attn_method = config_plot.ATTN_METHOD
-    globals()[f"_plot_attn_map_{attn_method}"](sample_attn, sample_info, patch_dim, input_overlay, img_shape, config_plot, output_folder_path)
+    attn_map = globals()[f"_plot_attn_map_{attn_method}"](sample_attn, sample_info, patch_dim, input_overlay, img_shape, config_plot, output_folder_path)
+    return attn_map
 
 def _plot_attn_map_all_layers(attn, sample_info, patch_dim, input_img, img_shape, config_plot, output_folder_path):
     site, tile, label = sample_info
     attn = __attn_map_all_layers(attn)
+    num_layers, _, _= attn.shape #(num_layers, num_patches, num_patches)
+    attn_maps = []
     for layer_idx in range(num_layers):
         layer_attn = attn[layer_idx]
         layer_attn_map, heatmap_colored = __process_attn_map(layer_attn, patch_dim, img_shape, heatmap_color=config_plot.PLOT_HEATMAP_COLORMAP)
         __create_attn_map_img(layer_attn_map, input_img, heatmap_colored, config_plot, sup_title =f"Site{site}_Tile{tile}_Layer{layer_idx}\n{label}",  output_folder_path=output_folder_path)
-
+        attn_maps.append(layer_attn_map.flatten())
+    attn_maps = np.stack(attn_maps)
+    return attn_maps
 
 def _plot_attn_map_rollout(attn, sample_info, patch_dim, input_img, img_shape, config_plot, output_folder_path):
     site, tile, label = sample_info
     attn = __attn_map_rollout(attn)
     attn_map, heatmap_colored = __process_attn_map(attn, patch_dim, img_shape, heatmap_color=config_plot.PLOT_HEATMAP_COLORMAP)
     __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, sup_title= f"Site{site}_Tile{tile}_Rollout\n{label}", output_folder_path= output_folder_path)
+    return attn_map.flatten()
 
 
 
@@ -358,8 +379,8 @@ def __process_attn_map(attn, patch_dim, img_shape, heatmap_color = cv2.COLORMAP_
                 heatmap_color: int for cv2 coloring of the attention heatmap
 
             return:
-                attn_resized: attention map processed into original img_shape (H,W)
-                heatmap_colored: attention map colored by heatmap_color (3,H,W)
+                attn_resized: float32 attention map heatmap processed into original img_shape (H,W) scaled to [0,1]
+                heatmap_colored: uint8 attention map colored by heatmap_color (3,H,W)
 
         """
 
@@ -378,7 +399,7 @@ def __process_attn_map(attn, patch_dim, img_shape, heatmap_color = cv2.COLORMAP_
         # Apply colormap
         heatmap_colored = cv2.applyColorMap(heatmap_resized, heatmap_color)
 
-        #DUBUG
+        #DUBUG COLORS
         # max_coord = np.unravel_index(np.argmax(attn_heatmap), attn_heatmap.shape)
         # min_coord = np.unravel_index(np.argmin(attn_heatmap), attn_heatmap.shape)
         # max_color = heatmap_colored[max_coord[0], max_coord[1]]  # OpenCV uses (y, x)
@@ -389,38 +410,55 @@ def __process_attn_map(attn, patch_dim, img_shape, heatmap_color = cv2.COLORMAP_
 
         return attn_resized, heatmap_colored
 
-def __attn_map_all_layers(attn):
+def __attn_map_all_layers(attn, attn_layer_dim=0):
     """ average attention across heads, for each layer.
 
     parameteres:
-        attn: attention values of shape: (num_layers, num_heads, num_patches, num_patches)
+        attn: attention values of shape: ([<num_samples>], num_layers, num_heads, num_patches, num_patches)
+        attn_layer_dim: the dimension of the attention layer to iterate the rollout through
+                        ** for one sample should be 0 (as it the first dim)
+                        ** for multiple samples should be 1 (as num_samples is the 0 dimension)
 
     return:
         avg_attn: attention map per layer: (num_layers, num_patches, num_patches)
     """
-    avg_attn = attn.mean(axis=1)
+    avg_attn = attn.mean(axis=(attn_layer_dim + 1)) #average across heads
     return avg_attn
 
-def __attn_map_rollout(attn):
+def __attn_map_rollout(attn, attn_layer_dim=0):
     """  aggregates attention maps across multiple layers, using the rollout method:
 
     parameteres:
-        attn: attention values of shape: (num_layers, num_heads, num_patches, num_patches)
+        attn: attention values of shape: ([<num_samples>], num_layers, num_heads, num_patches, num_patches)
+        attn_layer_dim: the dimension of the attention layer to iterate the rollout through
+                        ** for one sample should be 0 (as it the first dim)
+                        ** for multiple samples should be 1 (as num_samples is the 0 dimension)
 
     returns:
         rollout: attention map for all layers and heads: (num_patches, num_patches)
     """
 
     # Initialize rollout with identity matrix
-    rollout = np.eye(attn[0].shape[-1]) #(num_patches, num_patches)
+    rollout = np.eye(attn.shape[-1]) #(num_patches, num_patches)
+
+    attn = attn.mean(axis=(attn_layer_dim + 1)) # Average attention across heads (A)
 
     # Multiply attention maps layer by layer
-    for layer_attn in attn:
-        # CHECK layer_attn shape
-        attention_heads_fused = layer_attn.mean(axis=0) # Average attention across heads = A
-        attention_heads_fused += np.eye(attention_heads_fused.shape[-1]) # A + I
-        attention_heads_fused /= attention_heads_fused.sum(axis=-1, keepdims=True) # Normalizing A
-        rollout = rollout @ attention_heads_fused  # Matrix multiplication
+    for layer_idx in range(attn.shape[attn_layer_dim]):
+        # extract the layer data
+        if attn_layer_dim == 0:
+            layer_attn = attn[layer_idx]        # layers are in the first dimension
+        elif attn_layer_dim == 1:
+            layer_attn = attn[:, layer_idx]     # layers are in the second dimension (after batch)
+        else:  
+            idx = [slice(None)] * attn.ndim
+            idx[attn_layer_dim] = layer_idx
+            layer_attn = attn[tuple(idx)]
+
+        # rollout mechnism 
+        layer_attn += np.eye(layer_attn.shape[-1]) # A + I
+        layer_attn /= layer_attn.sum(axis=-1, keepdims=True) # Normalizing A
+        rollout = rollout @ layer_attn  # Matrix multiplication
     
     return rollout
 
