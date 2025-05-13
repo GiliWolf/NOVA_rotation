@@ -77,9 +77,9 @@ def generate_umaps(output_folder_path:str, config_path_data:str, config_path_plo
     labels = np.array(__extract_samples_to_plot([labels], samples_indices, data_config = config_data)[0])
     paths = np.array(__extract_samples_to_plot([paths], samples_indices, data_config = config_data)[0])
 
-
+    new_ari_scores = analyzer_UMAP._get_only_ari(embeddings = umap_embeddings, labels = labels) #{'G3BP1': X}
     # Plot the UMAP
-    plot_umap(umap_embeddings, labels, config_data, config_plot, saveroot, umap_idx, ari_scores, paths)
+    plot_umap(umap_embeddings, labels, config_data, config_plot, saveroot, umap_idx, new_ari_scores, paths)
 
         
 
