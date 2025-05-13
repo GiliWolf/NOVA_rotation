@@ -176,6 +176,6 @@ def display_tile(Site:str, tile:int, marker:np.array, nucleus:np.array, overlay:
 
 
 if __name__ == "__main__":
-    input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output/RotationDatasetConfig_Rollout/raw/attn_maps/neurons/batch9"
+    input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output/RotationDatasetConfig_Pairs/processed/attn_maps/neurons/batch9"
     emb = load_npy_to_nparray(input_dir, "testset_attn.npy")
     print(emb.shape)

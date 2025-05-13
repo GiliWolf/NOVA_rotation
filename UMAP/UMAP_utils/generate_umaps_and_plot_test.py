@@ -17,6 +17,7 @@ from src.analysis.analyzer_umap_multiple_markers import AnalyzerUMAPMultipleMark
 from src.analysis.analyzer_umap_multiplex_markers import AnalyzerUMAPMultiplexMarkers
 from src.analysis.analyzer_umap import AnalyzerUMAP
 from NOVA_rotation.load_files.load_data_from_npy import load_npy_to_nparray
+from NOVA_rotation.attention_maps.attention_maps_utils.generate_attention_maps import __extract_indices_to_plot, __extract_samples_to_plot
 
 # Mapping between umap_type and corresponding Analyzer classes and plotting functions
 analyzer_mapping = {
@@ -31,12 +32,13 @@ def generate_umaps(output_folder_path:str, config_path_data:str, config_path_plo
     config_plot:PlotConfig = load_config_file(config_path_plot, 'plot')
     # CHANGED: 
     #embeddings, labels, paths = load_embeddings(output_folder_path, config_data)
-    #**input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig"
-    input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output/RotationDatasetConfig_Rollout/raw/attn_maps/neurons/batch9"
-    #**embeddings_folder = os.path.join(input_dir,"pairs/testset")
-    embeddings_folder = os.path.join(input_dir)
-    #**embeddings, labels, paths = load_npy_to_nparray(embeddings_folder, "testset.npy"), load_npy_to_nparray(embeddings_folder, "testset_labels.npy"), load_npy_to_nparray(embeddings_folder, "testset_paths.npy")
-    embeddings, labels, paths = load_npy_to_nparray(embeddings_folder, "testset_attn.npy"), load_npy_to_nparray(embeddings_folder, "testset_labels.npy"), load_npy_to_nparray(embeddings_folder, "testset_paths.npy")
+    input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig"
+    #**input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output/RotationDatasetConfig_Rollout/raw/attn_maps/neurons/batch9"
+    embeddings_folder = os.path.join(input_dir,"embeddings", "neurons", "batch9")
+    #**embeddings_folder = os.path.join(input_dir)
+    embeddings, labels, paths = load_npy_to_nparray(embeddings_folder, "testset.npy"), load_npy_to_nparray(embeddings_folder, "testset_labels.npy"), load_npy_to_nparray(embeddings_folder, "testset_paths.npy")
+    #**embeddings, labels, paths = load_npy_to_nparray(embeddings_folder, "testset_attn.npy"), load_npy_to_nparray(embeddings_folder, "testset_labels.npy"), load_npy_to_nparray(embeddings_folder, "testset_paths.npy")
+
     umap_idx = get_if_exists(config_plot, 'UMAP_TYPE', None)
     if umap_idx not in analyzer_mapping:
         raise ValueError(f"Invalid UMAP index: {umap_idx}. Must be one of {list(analyzer_mapping.keys())}, and defined in plot config.")
@@ -57,14 +59,25 @@ def generate_umaps(output_folder_path:str, config_path_data:str, config_path_plo
     # if to_color is not None:
     #     saveroot += f'_coloring_{to_color[0].split("_")[0]}'
 
-    umap_outdir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/UMAP/UMAP_output/from_attn_maps"
-    run_name = "Rollout_Raw_Pairs_WT-G3BP1-stress_untreated"
+    umap_outdir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/UMAP/UMAP_output/from_embeddings"
+    #**umap_outdir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/UMAP/UMAP_output/from_attn_maps"
+    run_name = "Euc_Pairs_WT-G3BP1-stress_untreated"
     saveroot = os.path.join(umap_outdir, run_name)
     os.makedirs(saveroot, exist_ok=True)
     logging.info(f'saveroot: {saveroot}')
     
     # Calculate the UMAP embeddings
     umap_embeddings, labels, paths, ari_scores = analyzer_UMAP.calculate(embeddings, labels, paths)
+
+    # filter by paths
+    # filter by path names 
+    SAMPLES_PATH = os.path.join(input_dir,"pairs", "euclidean")
+    samples_indices = __extract_indices_to_plot(keep_samples_dir=SAMPLES_PATH, paths = [paths], data_config = config_data)
+    umap_embeddings = np.array(__extract_samples_to_plot([umap_embeddings], samples_indices, data_config = config_data)[0])
+    labels = np.array(__extract_samples_to_plot([labels], samples_indices, data_config = config_data)[0])
+    paths = np.array(__extract_samples_to_plot([paths], samples_indices, data_config = config_data)[0])
+
+
     # Plot the UMAP
     plot_umap(umap_embeddings, labels, config_data, config_plot, saveroot, umap_idx, ari_scores, paths)
 

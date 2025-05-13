@@ -9,14 +9,18 @@ import os
 sys.path.insert(0, os.getenv("HOME"))
 from NOVA_rotation.load_files.load_data_from_npy import load_npy_to_df, load_npy_to_nparray
 
+# Distance Method
+metric = "euclidean"  # "cosine"
+
+
 # init paths
 home_dir = os.getenv("HOME")
 emb_out_dir = "NOVA_rotation/embeddings/embedding_output"
-run_name = "RotationDatasetConfig_New_paths"
+run_name = "RotationDatasetConfig"
 emb_dir = os.path.join(home_dir, emb_out_dir, run_name)
 groups_dir  = os.path.join(emb_dir, "grouped_embedding")
 # output control 
-output_dir = os.path.join(emb_dir, "pairs")
+output_dir = os.path.join(emb_dir, "pairs", metric)
 os.makedirs(output_dir, exist_ok=True)
 
 # parameters
@@ -30,7 +34,7 @@ def load_files(groups_dir, condition, treatment):
     return emb, labels, paths
 
 
-def compute_distances(a1:np.array, a2:np.array, metric='cosine'):
+def compute_distances(a1:np.array, a2:np.array, metric='euclidean'):
     """"Compute all pairwise distances between 2 vectors.
     parameters:
         a1: first array 
@@ -58,7 +62,7 @@ def get_pairs(flattened_distances, N_PAIRS, dim2):
     return min_pairs, max_pairs, middle_pairs
 
 
-def visualize_pairs(distances, flattened_distances, min_pairs, max_pairs, middle_pairs, output_dir=None):
+def visualize_pairs(distances, flattened_distances, min_pairs, max_pairs, middle_pairs, metric, output_dir=None):
     # Distances of selected pairs
     selected_min_distances = [distances[i, j] for i, j in min_pairs]
     selected_max_distances = [distances[i, j] for i, j in max_pairs]
@@ -82,13 +86,13 @@ def visualize_pairs(distances, flattened_distances, min_pairs, max_pairs, middle
     for d in selected_middle_distances:
         plt.axvline(d, color='yellow', linestyle='--', linewidth=1)
 
-    plt.xlabel("Cosine Distance")
+    plt.xlabel(f"{metric} Distance")
     plt.ylabel("Count")
     plt.title("Distribution of All Pairwise Distances")
     plt.legend()
 
     if output_dir:
-        plt.savefig(os.path.join(output_dir, "cosine_dist.png"))
+        plt.savefig(os.path.join(output_dir, f"{metric}_distance_distribution.png"))
         plt.close()
     else:
         plt.show()
@@ -107,7 +111,7 @@ def main(NUM_PAIRS, data_set_types):
         wt_stress, wt_stress_labels, wt_stress_paths = load_files(input_dir, "WT", "stress")
 
         # Compute all pairwise distances between untreated and stress
-        num_untreated, num_stress, distances = compute_distances(wt_untreated, wt_stress,metric='cosine')
+        num_untreated, num_stress, distances = compute_distances(wt_untreated, wt_stress,metric=metric)
         flattened_distances = distances.flatten()
 
         # get min/max/middle dist pairs
@@ -145,7 +149,7 @@ def main(NUM_PAIRS, data_set_types):
         np.save(os.path.join(temp_output_dir, f"{set_type}_labels.npy"), set_type_labels["full_label"].values)
         np.save(os.path.join(temp_output_dir, f"{set_type}_paths.npy"), np.array(set_type_paths["Path"].values, dtype=str))
 
-        visualize_pairs(distances, flattened_distances, min_pairs, max_pairs, middle_pairs, output_dir = temp_output_dir)
+        visualize_pairs(distances, flattened_distances, min_pairs, max_pairs, middle_pairs, metric, output_dir = temp_output_dir)
 
 if __name__ == "__main__":
     main(NUM_PAIRS, data_set_types)

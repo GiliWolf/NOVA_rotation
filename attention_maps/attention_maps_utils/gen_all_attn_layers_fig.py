@@ -203,7 +203,7 @@ def main(run_all=False):
     save_dir =  os.path.join(input_dir, run_name,"layers_corr")
 
     img_input_dir = "/home/projects/hornsteinlab/Collaboration/MOmaps/input/images/processed/spd2/SpinningDisk"
-    path_name_to_plot = "batch9/WT/stress/G3BP1/rep2_R11_w3confCy5_s180_panelA_WT_processed.npy/2"
+    path_name_to_plot = "batch9/WT/Untreated/G3BP1/rep1_R11_w3confCy5_s208_panelA_WT_processed.npy/4"
     path_to_plot = os.path.join(img_input_dir, path_name_to_plot)
 
     attn_maps = load_npy_to_nparray(attn_maps_dir, "testset_attn.npy") 
@@ -222,7 +222,7 @@ def main(run_all=False):
 
 
 if __name__ == "__main__":
-    main(run_all=True)
+    main(run_all=False)
     print("Done.")
 
     
