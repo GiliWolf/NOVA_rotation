@@ -1,6 +1,7 @@
 import os
 import sys
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 import cv2
 from PIL import Image
 sys.path.insert(0, os.getenv("HOME"))
@@ -40,6 +41,12 @@ changes:
 
 """
 
+REDUCE_HEAD_FUNC_MAP = {
+    "mean": np.mean,
+    "max": np.max,
+    "min": np.min,
+}
+
 def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str, config_path_plot:str, batch_size:int=700)->None:
     config_data:DatasetConfig = load_config_file(config_path_data, "data")
     config_plot:PlotConfig = load_config_file(config_path_plot, 'plot')
@@ -52,7 +59,7 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     
     # OUTPUT 
     input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation"
-    run_name = "RotationDatasetConfig_Pairs"
+    run_name = "RotationDatasetConfig_Euc_Pairs_rollout"
     outputs_folder_path = os.path.join(input_dir, "attention_maps/attention_maps_output", run_name)
 
     # filter by path names 
@@ -287,12 +294,12 @@ def __plot_attn(sample_attn: np.ndarray[float], img_path:str, sample_info:tuple,
 
 def _plot_attn_map_all_layers(attn, sample_info, patch_dim, input_img, img_shape, config_plot, output_folder_path):
     site, tile, label = sample_info
-    attn = __attn_map_all_layers(attn)
+    attn = __attn_map_all_layers(attn, attn_layer_dim=0, heads_reduce_fn=REDUCE_HEAD_FUNC_MAP[config_plot.REDUCE_HEAD_FUNC])
     num_layers, _, _= attn.shape #(num_layers, num_patches, num_patches)
     attn_maps = []
     for layer_idx in range(num_layers):
         layer_attn = attn[layer_idx]
-        layer_attn_map, heatmap_colored = __process_attn_map(layer_attn, patch_dim, img_shape, heatmap_color=config_plot.PLOT_HEATMAP_COLORMAP)
+        layer_attn_map, heatmap_colored = __process_attn_map(layer_attn, patch_dim, img_shape, min_attn_threshold=config_plot.MIN_ATTN_THRESHOLD, heatmap_color=config_plot.PLOT_HEATMAP_COLORMAP)
         __create_attn_map_img(layer_attn_map, input_img, heatmap_colored, config_plot, sup_title =f"Site{site}_Tile{tile}_Layer{layer_idx}\n{label}",  output_folder_path=output_folder_path)
         attn_maps.append(layer_attn_map.flatten())
     attn_maps = np.stack(attn_maps)
@@ -300,8 +307,8 @@ def _plot_attn_map_all_layers(attn, sample_info, patch_dim, input_img, img_shape
 
 def _plot_attn_map_rollout(attn, sample_info, patch_dim, input_img, img_shape, config_plot, output_folder_path):
     site, tile, label = sample_info
-    attn = __attn_map_rollout(attn)
-    attn_map, heatmap_colored = __process_attn_map(attn, patch_dim, img_shape, heatmap_color=config_plot.PLOT_HEATMAP_COLORMAP)
+    attn = __attn_map_rollout(attn, attn_layer_dim=0, heads_reduce_fn=REDUCE_HEAD_FUNC_MAP[config_plot.REDUCE_HEAD_FUNC])
+    attn_map, heatmap_colored = __process_attn_map(attn, patch_dim, img_shape, min_attn_threshold=config_plot.MIN_ATTN_THRESHOLD, heatmap_color=config_plot.PLOT_HEATMAP_COLORMAP)
     __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, sup_title= f"Site{site}_Tile{tile}_Rollout\n{label}", output_folder_path= output_folder_path)
     return attn_map.flatten()
 
@@ -316,7 +323,7 @@ def __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, sup
             ** save/plot according to config_plot
 
             parameters:
-                attn_map: attention maps values, already in the img shape (H,W)
+                attn_map: attention maps values, already in the img shape (H,W), rescale to [0,1]
                 input_img: input img with marker and nucleus overlay (3,H,W)
                             ** assuming  Green = nucleus, Blue = marker, Red = zeroed out
                 heatmap_colored: attention map colored by heatmap_color (3,H,W)
@@ -326,17 +333,9 @@ def __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, sup
             return:
                 fig: matplot fig created. 
         """
-        # Green = nucleus
-        # Blue = marker
-        # red = attn map
-        attn_red = np.zeros_like(input_img)
-        attn_inverted = 1.0 - attn_map  # higher attention => deeper red
-        attn_red[..., 0] = np.clip(attn_inverted, 0, 1)     
 
-        # overlay attention with input fig using alpha for transpercy 
-        alpha = config_plot.ALPHA  
-        attn_overlay = cv2.addWeighted(input_img, 1.0, attn_red, alpha, 0)
-        attn_overlay_uint8 = (attn_overlay * 255).clip(0, 255).astype(np.uint8)
+        attn_map = np.clip(attn_map, 0, 1)   
+        alpha = config_plot.ALPHA
 
         fig, ax = plt.subplots(1, 3, figsize=config_plot.FIG_SIZE)
         ax[0].set_title(f'Input - Marker (blue), Nucleus (green)', fontsize=config_plot.PLOT_TITLE_FONTSIZE)
@@ -344,11 +343,18 @@ def __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, sup
         ax[0].set_axis_off()
 
         ax[1].set_title(f'Attention Heatmap', fontsize=config_plot.PLOT_TITLE_FONTSIZE)
-        ax[1].imshow(heatmap_colored, cmap='hot')
+        ax[1].imshow(cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB))
         ax[1].set_axis_off()
 
-        ax[2].set_title(f'Attention Overlay', fontsize=config_plot.PLOT_TITLE_FONTSIZE)
-        ax[2].imshow(attn_overlay_uint8)
+
+        custom_cmap = LinearSegmentedColormap.from_list(
+            'black_yellow_red', 
+            ['black', 'yellow', 'red']
+        )
+
+        ax[2].set_title('Attention Overlay', fontsize=config_plot.PLOT_TITLE_FONTSIZE)
+        ax[2].imshow(input_img)  # Show the original image
+        ax[2].imshow(attn_map, cmap=custom_cmap, alpha=alpha)  # Overlay attention map transparently
         ax[2].set_axis_off()
 
         fig.suptitle(sup_title, fontsize=config_plot.PLOT_SUPTITLE_FONTSIZE)
@@ -362,10 +368,9 @@ def __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, sup
             plt.show()
 
         logging.info(f"[plot_attn_maps] attn maps saved: {save_path}")
-
         return fig
 
-def __process_attn_map(attn, patch_dim, img_shape, heatmap_color = cv2.COLORMAP_JET):
+def __process_attn_map(attn, patch_dim, img_shape, min_attn_threshold = None, heatmap_color = cv2.COLORMAP_JET):
         """
             process attn map:
                 (1) extract cls token attn to other pathces
@@ -373,10 +378,11 @@ def __process_attn_map(attn, patch_dim, img_shape, heatmap_color = cv2.COLORMAP_
                 (3) resize to fit image shape
         
             parameteres:
-                attn: attention map of shape (num_patches, num_patches)
+                attn: attention map of shape (num_patches, num_patches) 
                 patch_dim: square root of num_patches to resize the attention vector into a square.
                 img_shape: original img_shape (H, W)
-                heatmap_color: int for cv2 coloring of the attention heatmap
+                min_attn_threshold [optional]: threshold for the minimum value if attention 
+                heatmap_color [optional]: int for cv2 coloring of the attention heatmap
 
             return:
                 attn_resized: float32 attention map heatmap processed into original img_shape (H,W) scaled to [0,1]
@@ -391,6 +397,10 @@ def __process_attn_map(attn, patch_dim, img_shape, heatmap_color = cv2.COLORMAP_
         # Normalize attention for heatmap
         attn_heatmap = (cls_attn_map - cls_attn_map.min()) / (cls_attn_map.max() - cls_attn_map.min() + 1e-6)
 
+        # Apply minimum attention threshold (if provided)
+        if min_attn_threshold is not None:
+            attn_heatmap[attn_heatmap < min_attn_threshold] = 0.0
+
         # Resize to match image size
         heatmap_resized = Image.fromarray((attn_heatmap * 255).astype(np.uint8)).resize(img_shape, resample=Image.BICUBIC)
         heatmap_resized = np.array(heatmap_resized).astype(np.uint8)
@@ -400,6 +410,24 @@ def __process_attn_map(attn, patch_dim, img_shape, heatmap_color = cv2.COLORMAP_
         heatmap_colored = cv2.applyColorMap(heatmap_resized, heatmap_color)
 
         #DUBUG COLORS
+        # plt.figure(figsize=(10, 5))
+
+        # # Plot the grayscale attention map
+        # plt.subplot(1, 2, 1)
+        # plt.imshow(attn_resized, cmap='gray')
+        # plt.title("Grayscale Attention (attn_resized)")
+        # plt.axis('off')
+
+        # # Plot the color-mapped attention map
+        # plt.subplot(1, 2, 2)
+        # plt.imshow(cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB))
+        # plt.title("Colored Heatmap (heatmap_colored)")
+        # plt.axis('off')
+
+        # plt.tight_layout()
+        # plt.savefig("check_colors.png")
+
+
         # max_coord = np.unravel_index(np.argmax(attn_heatmap), attn_heatmap.shape)
         # min_coord = np.unravel_index(np.argmin(attn_heatmap), attn_heatmap.shape)
         # max_color = heatmap_colored[max_coord[0], max_coord[1]]  # OpenCV uses (y, x)
@@ -410,22 +438,23 @@ def __process_attn_map(attn, patch_dim, img_shape, heatmap_color = cv2.COLORMAP_
 
         return attn_resized, heatmap_colored
 
-def __attn_map_all_layers(attn, attn_layer_dim=0):
-    """ average attention across heads, for each layer.
+def __attn_map_all_layers(attn, attn_layer_dim=0, heads_reduce_fn:callable=np.mean):
+    """ reduce attention across heads according to heads_reduce_fn, for each layer.
 
     parameteres:
         attn: attention values of shape: ([<num_samples>], num_layers, num_heads, num_patches, num_patches)
         attn_layer_dim: the dimension of the attention layer to iterate the rollout through
                         ** for one sample should be 0 (as it the first dim)
                         ** for multiple samples should be 1 (as num_samples is the 0 dimension)
+        heads_reduce_fn: numpy function to reduce the heads layer with (for example: np.mean/np.max/np.min...)
 
     return:
-        avg_attn: attention map per layer: (num_layers, num_patches, num_patches)
+        reduced_attn: attention map per layer: (num_layers, num_patches, num_patches)
     """
-    avg_attn = attn.mean(axis=(attn_layer_dim + 1)) #average across heads
-    return avg_attn
+    reduced_attn = heads_reduce_fn(attn, axis=(attn_layer_dim + 1))
+    return reduced_attn
 
-def __attn_map_rollout(attn, attn_layer_dim=0):
+def __attn_map_rollout(attn, attn_layer_dim=0, heads_reduce_fn:callable=np.mean):
     """  aggregates attention maps across multiple layers, using the rollout method:
 
     parameteres:
@@ -441,7 +470,7 @@ def __attn_map_rollout(attn, attn_layer_dim=0):
     # Initialize rollout with identity matrix
     rollout = np.eye(attn.shape[-1]) #(num_patches, num_patches)
 
-    attn = attn.mean(axis=(attn_layer_dim + 1)) # Average attention across heads (A)
+    attn = heads_reduce_fn(attn, axis=(attn_layer_dim + 1)) # Average attention across heads (A)
 
     # Multiply attention maps layer by layer
     for layer_idx in range(attn.shape[attn_layer_dim]):

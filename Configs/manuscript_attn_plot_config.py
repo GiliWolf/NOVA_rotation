@@ -5,6 +5,7 @@ sys.path.insert(1, os.getenv("NOVA_HOME"))
 
 from NOVA_rotation.Configs.attn_map_config import PlotAttnMapConfig
 import cv2
+import numpy as np
 
 
 class InitialAttnMapPlotConfig(PlotAttnMapConfig):
@@ -12,7 +13,7 @@ class InitialAttnMapPlotConfig(PlotAttnMapConfig):
         super().__init__()
 
         # Controls transparency of the attention overlay (higher alpha = more visible red)
-        self.ALPHA:float = 0.45
+        self.ALPHA:float = 0.4
 
         # Controls layout size of the output figure.
         self.FIG_SIZE:tuple = (12, 4)
@@ -29,7 +30,11 @@ class InitialAttnMapPlotConfig(PlotAttnMapConfig):
 
         self.SHOW_PLOT:bool = False
 
-        self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/pairs"
+        self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/pairs/euclidean"
 
         # attention method 
-        self.ATTN_METHOD:str = "all_layers"
+        self.ATTN_METHOD:str = "rollout"
+
+        self.REDUCE_HEAD_FUNC:str = "mean"
+
+        self.MIN_ATTN_THRESHOLD:float = 0.2

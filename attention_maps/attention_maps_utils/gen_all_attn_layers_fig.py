@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import matplotlib
 from scipy.stats import pearsonr, entropy
+import cv2
 
 
 
@@ -21,10 +22,12 @@ def init_globals(attn_maps):
     patch_dim = int(np.sqrt(num_patches))
 
 
-def compute_parameters(img_path, tile, sample_attn):
+def compute_parameters(img_path, tile, sample_attn, min_attn_threshold = None):
     marker, nucleus, overlay = load_tile(img_path, tile)
 
     # List to store results
+    attn_map_list = []
+    heatmap_colored_list = []
     corr_nucleus_list = []
     corr_marker_list = []
     entropy_list = []
@@ -33,7 +36,9 @@ def compute_parameters(img_path, tile, sample_attn):
         # get attn map
         attn = sample_attn[layer_idx]
         attn = attn.mean(axis=0) # avg across heads
-        attn_map, _ = __process_attn_map(attn, patch_dim, img_shape)
+        attn_map, heatmap_colored = __process_attn_map(attn, patch_dim, img_shape, min_attn_threshold= min_attn_threshold)
+        attn_map_list.append(attn_map)
+        heatmap_colored_list.append(heatmap_colored)
 
         # Flatten
         flat_attn = attn_map.flatten()
@@ -48,11 +53,12 @@ def compute_parameters(img_path, tile, sample_attn):
         attn_probs = flat_attn + 1e-8  # avoid log(0)
         attn_probs /= attn_probs.sum()  # normalize to sum to 1
         layer_ent = entropy(attn_probs, base=2)  # base-2 entropy (bits)
-        entropy_list.append(layer_ent)
+        normalized_ent = layer_ent / np.log2(len(attn_probs))  # normalize to [0, 1]
+        entropy_list.append(normalized_ent)
 
-    return corr_nucleus_list, corr_marker_list, entropy_list
+    return attn_map_list, heatmap_colored_list, corr_nucleus_list, corr_marker_list, entropy_list
 
-def plot_fig(img_path, tile, site, file_name, sample_attn, label, corr_nucleus_list, corr_marker_list, entropy_list, save_dir=None):
+def plot_fig(img_path, tile, site, file_name, label, attn_map_list, heatmap_colored_list, corr_nucleus_list, corr_marker_list, entropy_list, save_dir=None):
     marker, nucleus, overlay = load_tile(img_path, tile)
 
     fig = plt.figure(figsize=(13, 11), facecolor="#d3ebe3")
@@ -72,16 +78,10 @@ def plot_fig(img_path, tile, site, file_name, sample_attn, label, corr_nucleus_l
     fig.text(0.5, 0.68, "Attention Maps", ha='center', va='center', fontsize=16, fontweight='bold')
 
 
-    for layer_idx, (corr_nucleus, corr_marker, layer_ent) in enumerate(zip(corr_nucleus_list, corr_marker_list, entropy_list)):
-        # get attn map
-        attn = sample_attn[layer_idx]
-        attn = attn.mean(axis=0) #avg across heads
-        _, heatmap_colored = __process_attn_map(attn, patch_dim, img_shape)
-
-
+    for layer_idx, (heatmap_colored, corr_nucleus, corr_marker, layer_ent) in enumerate(zip(heatmap_colored_list, corr_nucleus_list, corr_marker_list, entropy_list)):
         # plot layer attn maps
         ax = plt.subplot(gs_attn[layer_idx])  
-        ax.imshow(heatmap_colored)
+        ax.imshow(cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB))
         ax.set_title(f"Layer {layer_idx}", fontsize=14, fontweight='bold')
         ax.axis("off")
 
@@ -156,6 +156,7 @@ def plot_correlation(corr_nucleus_all, corr_marker_all, entropy_all, num_layers,
 
 
 def extract_path(paths, path_to_plot):
+    print(path_to_plot)
     match = paths[paths["Path"] == path_to_plot]
 
     if not match.empty:
@@ -167,19 +168,19 @@ def extract_path(paths, path_to_plot):
         return None
 
 
-def run_one_sample(paths, path_to_plot, attn_maps,labels, save_dir=None):
+def run_one_sample(paths, path_to_plot, attn_maps,labels, min_attn_threshold = None, save_dir=None):
     # get specific sample by path name 
     index, path = extract_path(paths, path_to_plot)
     sample_attn = attn_maps[index]
     label = labels.iloc[index].full_label
     img_path, tile, site = Parse_Path_Item(path)
     file_name = path.File_Name
-    corr_nucleus_list, corr_marker_list, entropy_list = compute_parameters(img_path, tile, sample_attn)
-    plot_fig(img_path, tile, site, file_name, sample_attn, label, corr_nucleus_list, corr_marker_list, entropy_list, save_dir=save_dir)
+    attn_map_list, heatmap_colored_list, corr_nucleus_list, corr_marker_list, entropy_list = compute_parameters(img_path, tile, sample_attn, min_attn_threshold)
+    plot_fig(img_path, tile, site, file_name, label, attn_map_list, heatmap_colored_list, corr_nucleus_list, corr_marker_list, entropy_list, save_dir)
 
 
 
-def run_all_samples(paths, attn_maps,labels, save_dir=None):
+def run_all_samples(paths, attn_maps,labels, min_attn_threshold = None, save_dir=None):
     corr_nucleus_all = []
     corr_marker_all = []
     entropy_all = []
@@ -188,7 +189,7 @@ def run_all_samples(paths, attn_maps,labels, save_dir=None):
         path = paths.iloc[index]
         img_path, tile, site = Parse_Path_Item(path)
         file_name = path.File_Name
-        corr_nucleus_list, corr_marker_list, entropy_list = compute_parameters(img_path, tile, sample_attn)
+        attn_map_list, heatmap_colored_list, corr_nucleus_list, corr_marker_list, entropy_list = compute_parameters(img_path, tile, sample_attn, min_attn_threshold)
         corr_nucleus_all.append(corr_nucleus_list)
         corr_marker_all.append(corr_marker_list)
         entropy_all.append(entropy_list)
@@ -196,14 +197,15 @@ def run_all_samples(paths, attn_maps,labels, save_dir=None):
     # plot correlations across samples
     plot_correlation(corr_nucleus_all, corr_marker_all, entropy_all, num_layers, save_dir)
 
-def main(run_all=False):
+def main(run_all=False, min_attn_threshold=None):
+
     input_dir = "./NOVA_rotation/attention_maps/attention_maps_output"
-    run_name = "RotationDatasetConfig_Pairs"
+    run_name = "RotationDatasetConfig_Euc_Pairs_all_layers"
     attn_maps_dir = os.path.join(input_dir, run_name, "raw/attn_maps/neurons/batch9")
     save_dir =  os.path.join(input_dir, run_name,"layers_corr")
 
     img_input_dir = "/home/projects/hornsteinlab/Collaboration/MOmaps/input/images/processed/spd2/SpinningDisk"
-    path_name_to_plot = "batch9/WT/Untreated/G3BP1/rep1_R11_w3confCy5_s208_panelA_WT_processed.npy/4"
+    path_name_to_plot = "batch9/WT/Untreated/G3BP1/rep1_R11_w3confCy5_s225_panelA_WT_processed.npy/1"
     path_to_plot = os.path.join(img_input_dir, path_name_to_plot)
 
     attn_maps = load_npy_to_nparray(attn_maps_dir, "testset_attn.npy") 
@@ -215,14 +217,14 @@ def main(run_all=False):
     os.makedirs(save_dir, exist_ok=True)
 
     if run_all:
-        run_all_samples(paths, attn_maps,labels, save_dir=save_dir)
+        run_all_samples(paths, attn_maps,labels, min_attn_threshold, save_dir=save_dir)
     else:
-        run_one_sample(paths, path_to_plot, attn_maps,labels, save_dir=save_dir)
+        run_one_sample(paths, path_to_plot, attn_maps,labels, min_attn_threshold, save_dir=save_dir)
 
 
 
 if __name__ == "__main__":
-    main(run_all=False)
+    main(run_all=False, min_attn_threshold = 0.5)
     print("Done.")
 
     

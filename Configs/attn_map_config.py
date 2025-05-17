@@ -1,10 +1,11 @@
 import sys
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Callable
 
 sys.path.insert(1, os.getenv("NOVA_HOME")) 
 from src.common.base_config import BaseConfig
 import cv2
+
 
 class PlotAttnMapConfig(BaseConfig):
     """Config for Attention Maps plotting
@@ -37,6 +38,10 @@ class PlotAttnMapConfig(BaseConfig):
 
         # attention method 
         self.ATTN_METHOD:str = None 
+
+        self.REDUCE_HEAD_FUNC:str = None
+
+        self.MIN_ATTN_THRESHOLD:float = None
 
 
     
