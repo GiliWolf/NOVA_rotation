@@ -454,7 +454,7 @@ def __attn_map_all_layers(attn, attn_layer_dim=0, heads_reduce_fn:callable=np.me
     reduced_attn = heads_reduce_fn(attn, axis=(attn_layer_dim + 1))
     return reduced_attn
 
-def __attn_map_rollout(attn, attn_layer_dim=0, heads_reduce_fn:callable=np.mean):
+def __attn_map_rollout(attn, attn_layer_dim:int=0, heads_reduce_fn:callable=np.mean, start_layer_index:int=0):
     """  aggregates attention maps across multiple layers, using the rollout method:
 
     parameteres:
@@ -462,6 +462,8 @@ def __attn_map_rollout(attn, attn_layer_dim=0, heads_reduce_fn:callable=np.mean)
         attn_layer_dim: the dimension of the attention layer to iterate the rollout through
                         ** for one sample should be 0 (as it the first dim)
                         ** for multiple samples should be 1 (as num_samples is the 0 dimension)
+        heads_reduce_fn: numpy function to reduce the heads layer with (for example: np.mean/np.max/np.min...)
+        start_layer_index: the index of the layer to start the rollput from.
 
     returns:
         rollout: attention map for all layers and heads: (num_patches, num_patches)
@@ -473,7 +475,7 @@ def __attn_map_rollout(attn, attn_layer_dim=0, heads_reduce_fn:callable=np.mean)
     attn = heads_reduce_fn(attn, axis=(attn_layer_dim + 1)) # Average attention across heads (A)
 
     # Multiply attention maps layer by layer
-    for layer_idx in range(attn.shape[attn_layer_dim]):
+    for layer_idx in range(start_layer_index,attn.shape[attn_layer_dim]):
         # extract the layer data
         if attn_layer_dim == 0:
             layer_attn = attn[layer_idx]        # layers are in the first dimension
@@ -484,7 +486,7 @@ def __attn_map_rollout(attn, attn_layer_dim=0, heads_reduce_fn:callable=np.mean)
             idx[attn_layer_dim] = layer_idx
             layer_attn = attn[tuple(idx)]
 
-        # rollout mechnism 
+        # rollout mechanism 
         layer_attn += np.eye(layer_attn.shape[-1]) # A + I
         layer_attn /= layer_attn.sum(axis=-1, keepdims=True) # Normalizing A
         rollout = rollout @ layer_attn  # Matrix multiplication

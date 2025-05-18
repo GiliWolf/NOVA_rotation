@@ -12,6 +12,7 @@ from matplotlib import gridspec
 import matplotlib
 from scipy.stats import pearsonr, entropy
 import cv2
+import itertools
 
 
 
@@ -22,7 +23,7 @@ def init_globals(attn_maps):
     patch_dim = int(np.sqrt(num_patches))
 
 
-def compute_parameters(img_path, tile, sample_attn, min_attn_threshold = None):
+def compute_parameters(img_path, tile, sample_attn, min_attn_threshold = None, heads_reduce_fn = None):
     marker, nucleus, overlay = load_tile(img_path, tile)
 
     # List to store results
@@ -35,7 +36,7 @@ def compute_parameters(img_path, tile, sample_attn, min_attn_threshold = None):
     for layer_idx in range(num_layers):
         # get attn map
         attn = sample_attn[layer_idx]
-        attn = attn.mean(axis=0) # avg across heads
+        attn = heads_reduce_fn(attn, axis=0) # avg across heads
         attn_map, heatmap_colored = __process_attn_map(attn, patch_dim, img_shape, min_attn_threshold= min_attn_threshold)
         attn_map_list.append(attn_map)
         heatmap_colored_list.append(heatmap_colored)
@@ -168,19 +169,19 @@ def extract_path(paths, path_to_plot):
         return None
 
 
-def run_one_sample(paths, path_to_plot, attn_maps,labels, min_attn_threshold = None, save_dir=None):
+def run_one_sample(paths, path_to_plot, attn_maps,labels, min_attn_threshold = None, heads_reduce_fn = None, save_dir=None):
     # get specific sample by path name 
     index, path = extract_path(paths, path_to_plot)
     sample_attn = attn_maps[index]
     label = labels.iloc[index].full_label
     img_path, tile, site = Parse_Path_Item(path)
     file_name = path.File_Name
-    attn_map_list, heatmap_colored_list, corr_nucleus_list, corr_marker_list, entropy_list = compute_parameters(img_path, tile, sample_attn, min_attn_threshold)
+    attn_map_list, heatmap_colored_list, corr_nucleus_list, corr_marker_list, entropy_list = compute_parameters(img_path, tile, sample_attn, min_attn_threshold, heads_reduce_fn)
     plot_fig(img_path, tile, site, file_name, label, attn_map_list, heatmap_colored_list, corr_nucleus_list, corr_marker_list, entropy_list, save_dir)
 
 
 
-def run_all_samples(paths, attn_maps,labels, min_attn_threshold = None, save_dir=None):
+def run_all_samples(paths, attn_maps,labels, min_attn_threshold = None, heads_reduce_fn = None, save_dir=None):
     corr_nucleus_all = []
     corr_marker_all = []
     entropy_all = []
@@ -189,7 +190,7 @@ def run_all_samples(paths, attn_maps,labels, min_attn_threshold = None, save_dir
         path = paths.iloc[index]
         img_path, tile, site = Parse_Path_Item(path)
         file_name = path.File_Name
-        attn_map_list, heatmap_colored_list, corr_nucleus_list, corr_marker_list, entropy_list = compute_parameters(img_path, tile, sample_attn, min_attn_threshold)
+        attn_map_list, heatmap_colored_list, corr_nucleus_list, corr_marker_list, entropy_list = compute_parameters(img_path, tile, sample_attn, min_attn_threshold, heads_reduce_fn)
         corr_nucleus_all.append(corr_nucleus_list)
         corr_marker_all.append(corr_marker_list)
         entropy_all.append(entropy_list)
@@ -197,16 +198,22 @@ def run_all_samples(paths, attn_maps,labels, min_attn_threshold = None, save_dir
     # plot correlations across samples
     plot_correlation(corr_nucleus_all, corr_marker_all, entropy_all, num_layers, save_dir)
 
-def main(run_all=False, min_attn_threshold=None):
+def main(run_all=False, min_attn_threshold=None, heads_reduce_fn = None):
 
     input_dir = "./NOVA_rotation/attention_maps/attention_maps_output"
     run_name = "RotationDatasetConfig_Euc_Pairs_all_layers"
     attn_maps_dir = os.path.join(input_dir, run_name, "raw/attn_maps/neurons/batch9")
-    save_dir =  os.path.join(input_dir, run_name,"layers_corr")
+    save_dir =  os.path.join(input_dir, run_name,"layers_corr", f"threshold{min_attn_threshold:.1f}_{heads_reduce_fn.__name__}")
 
     img_input_dir = "/home/projects/hornsteinlab/Collaboration/MOmaps/input/images/processed/spd2/SpinningDisk"
-    path_name_to_plot = "batch9/WT/Untreated/G3BP1/rep1_R11_w3confCy5_s225_panelA_WT_processed.npy/1"
-    path_to_plot = os.path.join(img_input_dir, path_name_to_plot)
+    samples_paths = ["batch9/WT/stress/G3BP1/rep1_R11_w3confCy5_s19_panelA_WT_processed.npy/0",
+                    "batch9/WT/stress/G3BP1/rep1_R11_w3confCy5_s38_panelA_WT_processed.npy/1",
+                    "batch9/WT/Untreated/G3BP1/rep1_R11_w3confCy5_s204_panelA_WT_processed.npy/2",
+                    "batch9/WT/Untreated/G3BP1/rep1_R11_w3confCy5_s281_panelA_WT_processed.npy/8",
+                    "batch9/WT/stress/G3BP1/rep1_R11_w3confCy5_s26_panelA_WT_processed.npy/4",
+                    "batch9/WT/stress/G3BP1/rep1_R11_w3confCy5_s60_panelA_WT_processed.npy/1",
+                    "batch9/WT/Untreated/G3BP1/rep1_R11_w3confCy5_s208_panelA_WT_processed.npy/4",
+                    "batch9/WT/Untreated/G3BP1/rep1_R11_w3confCy5_s225_panelA_WT_processed.npy/1"]
 
     attn_maps = load_npy_to_nparray(attn_maps_dir, "testset_attn.npy") 
     labels = load_labels_from_npy(attn_maps_dir, "testset")
@@ -217,14 +224,29 @@ def main(run_all=False, min_attn_threshold=None):
     os.makedirs(save_dir, exist_ok=True)
 
     if run_all:
-        run_all_samples(paths, attn_maps,labels, min_attn_threshold, save_dir=save_dir)
+        run_all_samples(paths, attn_maps,labels, min_attn_threshold, heads_reduce_fn, save_dir=save_dir)
     else:
-        run_one_sample(paths, path_to_plot, attn_maps,labels, min_attn_threshold, save_dir=save_dir)
+        for path_name_to_plot in samples_paths:
+            path_to_plot = os.path.join(img_input_dir, path_name_to_plot)
+            run_one_sample(paths, path_to_plot, attn_maps,labels, min_attn_threshold, heads_reduce_fn, save_dir=save_dir)
 
 
 
 if __name__ == "__main__":
-    main(run_all=False, min_attn_threshold = 0.5)
+
+    # Define parameter grid
+    run_all_options = [False, True]
+    min_attn_threshold_options = np.arange(0, 0.5, 0.1) # 0 to 0.4
+    heads_reduce_fn_options = [np.mean]
+
+    # Iterate over all combinations
+    for run_all, min_attn_threshold, heads_reduce_fn in itertools.product(
+        run_all_options, min_attn_threshold_options, heads_reduce_fn_options
+    ):
+        print(f"Running: run_all={run_all}, min_attn_threshold={min_attn_threshold:.1f}, "
+            f"heads_reduce_fn={heads_reduce_fn.__name__}")
+        main(run_all, min_attn_threshold, heads_reduce_fn)
+
     print("Done.")
 
     
