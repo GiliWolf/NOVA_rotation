@@ -126,12 +126,16 @@ def plot_correlation(corr_nucleus_all, corr_marker_all, entropy_all, num_layers,
     # Plot
     fig, ax1 = plt.subplots(figsize=(8, 6))
 
+    # dashed line on y=0 for better visulization
+    ax1.axhline(y=0, color='black', linestyle='--', linewidth=1)
+
     # Correlation plots
     ax1.plot(layers_range, median_nucleus, label="Nucleus (Median)", color='green', marker='o')
     ax1.fill_between(layers_range, p25_nucleus, p75_nucleus, color='green', alpha=0.3)
 
     ax1.plot(layers_range, median_marker, label="Marker (Median)", color='red', marker='o')
     ax1.fill_between(layers_range, p25_marker, p75_marker, color='red', alpha=0.3)
+    
 
     ax1.set_xlabel("Layer Number", fontsize=12)
     ax1.set_ylabel("Correlation", fontsize=12)

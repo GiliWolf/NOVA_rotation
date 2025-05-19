@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 import matplotlib
-from scipy.stats import pearsonr, entropy
+from scipy.stats import entropy
 import cv2
 from matplotlib.colors import LinearSegmentedColormap
 import itertools
@@ -22,22 +22,54 @@ def init_globals(attn_maps):
     img_shape = (100, 100)
     patch_dim = int(np.sqrt(num_patches))
 
+def corr_pearsonr(m1, m2):
+    from scipy.stats import pearsonr
+    v1 = m1.flatten()
+    v2 = m2.flatten()
+    return pearsonr(v1, v2)[0]
 
-def compute_parameters(img_path, tile, sample_attn, min_attn_threshold = None, heads_reduce_fn=np.mean, start_layer_index = 0):
+def corr_mutual_info(m1, m2, bins=32):
+    from sklearn.metrics import mutual_info_score
+    # Flatten and discretize
+    v1 = np.digitize(m1.flatten(), bins=np.histogram_bin_edges(m1, bins))
+    v2 = np.digitize(m2.flatten(), bins=np.histogram_bin_edges(m2, bins))
+    return mutual_info_score(v1, v2)
+
+def corr_ssim(m1, m2):
+    """
+    assumes m1 and m2 are normalized 
+    """
+    from skimage.metrics import structural_similarity as ssim
+    score, ssim_map = ssim(m1, m2, full=True)
+
+    return score
+
+def corr_attn_overlap(m1, m2, m2_binary_perc = 0.9):
+    # Use top X% of m2 (img) as binary mask
+    threshold = np.quantile(m2, m2_binary_perc)
+    m2_mask = m2 >= threshold
+    if m2_mask.sum() == 0:
+        return 0.0
+    score = (m1[m2_mask].sum()) / m2_mask.sum() #normalize by the mask size
+    return score
+
+def compute_correlation(attn, img_ch, corrleation_method:str):
+    return globals()[f"corr_{corrleation_method}"](attn, img_ch)
+
+
+def compute_parameters(img_path, tile, sample_attn, min_attn_threshold = None, heads_reduce_fn=np.mean, start_layer_index = 0, corr_method = "pearsonr"):
     marker, nucleus, overlay = load_tile(img_path, tile)
 
     #attn = heads_reduce_fn(attn, axis=0)
     attn = __attn_map_rollout(sample_attn, attn_layer_dim=0,heads_reduce_fn = heads_reduce_fn, start_layer_index=start_layer_index)
     attn_map, heatmap_colored = __process_attn_map(attn, patch_dim, img_shape, min_attn_threshold= min_attn_threshold)
 
-    # Flatten
-    flat_attn = attn_map.flatten()
-
     # compute correlations - 
-    corr_nucleus = pearsonr(flat_attn, nucleus.flatten())[0]
-    corr_marker = pearsonr(flat_attn, marker.flatten())[0]
+    corr_nucleus = compute_correlation(attn_map, nucleus, corr_method)
+    corr_marker = compute_correlation(attn_map, marker, corr_method)
 
     # compute entropy -
+    flat_attn = attn_map.flatten()
     attn_probs = flat_attn + 1e-8  # avoid log(0)
     attn_probs /= attn_probs.sum()  # normalize to sum to 1
     layer_ent = entropy(attn_probs, base=2)  # base-2 entropy (bits)
@@ -45,7 +77,7 @@ def compute_parameters(img_path, tile, sample_attn, min_attn_threshold = None, h
 
     return attn_map, heatmap_colored, corr_nucleus, corr_marker, normalized_ent
 
-def plot_fig(img_path, tile, site, file_name, label, attn_map, heatmap_colored, corr_nucleus, corr_marker, entropy, save_dir=None):
+def plot_fig(img_path, tile, site, file_name, label, attn_map, heatmap_colored, corr_nucleus, corr_marker, entropy, corr_method, save_dir=None):
 
         _, _, input_img = load_tile(img_path, tile)
         attn_map = np.clip(attn_map, 0, 1)   
@@ -54,7 +86,7 @@ def plot_fig(img_path, tile, site, file_name, label, attn_map, heatmap_colored, 
         fig, ax = plt.subplots(1, 3, figsize=(12, 4))
         fig.suptitle(f"{file_name}\n{label}\n\n", fontsize=16, fontweight='bold')
 
-        ax[1].text(0.5, -0.25, f"Corr(Nucleus): {corr_nucleus:.2f}\nCorr(Marker): {corr_marker:.2f}\nEntropy: {entropy:.2f}", 
+        ax[1].text(0.5, -0.25, f"{corr_method} Corr(Nucleus): {corr_nucleus:.2f}\n{corr_method} Corr(Marker): {corr_marker:.2f}\nEntropy: {entropy:.2f}", 
                 transform=ax[1].transAxes, ha='center', va='center', fontsize=12, color='black')
 
         ax[0].set_title(f'Input - Marker (blue), Nucleus (green)', fontsize=12)
@@ -81,7 +113,7 @@ def plot_fig(img_path, tile, site, file_name, label, attn_map, heatmap_colored, 
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
             fig.subplots_adjust(top=0.80)
-            plt.savefig(os.path.join(save_dir, f"{file_name}_rollout_from1.png"), dpi=300, bbox_inches="tight",  facecolor=fig.get_facecolor())
+            plt.savefig(os.path.join(save_dir, f"{file_name}_rollout_{corr_method}.png"), dpi=300, bbox_inches="tight",  facecolor=fig.get_facecolor())
             plt.close()
         else:
             plt.tight_layout()
@@ -95,55 +127,8 @@ def get_percentiles(data, prc_list = [50, 25, 75], axis=0):
     return perc_tuple
 
 
-def plot_correlation(corr_nucleus_all, corr_marker_all, entropy_all, save_dir=None):
-    """
-    Plot correlation for each layer across multiple samples.
-    """
-    # Convert to numpy arrays for easier manipulation
-    corr_nucleus_all = np.array(corr_nucleus_all)
-    corr_marker_all = np.array(corr_marker_all)
-    entropy_all = np.array(entropy_all)
 
-    # Calculate median and percentiles (25th and 75th)
-    median_nucleus, p25_nucleus, p75_nucleus = get_percentiles(corr_nucleus_all)
-    median_marker, p25_marker, p75_marker = get_percentiles(corr_marker_all)
-    median_entropy, p25_entropy, p75_entropy = get_percentiles(entropy_all)
-
-    layers_range = range(1)
-
-    # Plot
-    fig, ax1 = plt.subplots(figsize=(8, 6))
-
-    # Correlation plots
-    ax1.plot(layers_range, median_nucleus, label="Nucleus (Median)", color='green', marker='o')
-    ax1.fill_between(layers_range, p25_nucleus, p75_nucleus, color='green', alpha=0.3)
-
-    ax1.plot(layers_range, median_marker, label="Marker (Median)", color='red', marker='o')
-    ax1.fill_between(layers_range, p25_marker, p75_marker, color='red', alpha=0.3)
-
-    ax1.set_xlabel("Layer Number", fontsize=12)
-    ax1.set_ylabel("Correlation", fontsize=12)
-    ax1.set_xticks(layers_range)
-    ax1.legend(loc="upper left")
-
-    # Entropy on secondary y-axis
-    ax2 = ax1.twinx()
-    ax2.plot(layers_range, median_entropy, label="Entropy (Median)", color='gray', linestyle='--', marker='x', alpha=0.4)
-    ax2.fill_between(layers_range, p25_entropy, p75_entropy, color='gray', alpha=0.1)
-    ax2.set_ylabel("Entropy", fontsize=12, color='gray')
-    ax2.tick_params(axis='y', labelcolor='gray')
-
-    fig.suptitle("Correlation and Entropy Across Layers", fontsize=14)
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-
-    if save_dir:
-        os.makedirs(save_dir, exist_ok=True)
-        plt.savefig(os.path.join(save_dir, f"correlation_entropy_plot.png"), dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
-        plt.close()
-    else:
-        plt.show()
-
-def plot_correlation_boxplot(corr_nucleus_all, corr_marker_all, entropy_all, save_dir=None):
+def plot_correlation_boxplot(corr_nucleus_all, corr_marker_all, entropy_all, corr_method, save_dir=None):
 
 
     # Convert to numpy arrays
@@ -166,7 +151,10 @@ def plot_correlation_boxplot(corr_nucleus_all, corr_marker_all, entropy_all, sav
                             boxprops=dict(facecolor='red', color='black'),
                             medianprops=dict(color='black'), showfliers=False)
 
-    ax1.set_ylabel("Correlation", fontsize=12)
+     # dashed line on y=0 for better visulization
+    ax1.axhline(y=0, color='black', linestyle='--', linewidth=1)
+
+    ax1.set_ylabel(f"{corr_method} Correlation", fontsize=12)
     ax1.set_ylim(-1, 1)
     ax1.set_xticks([1, 1.5, 2])
     ax1.set_xticklabels(['Nucleus', 'Entropy', 'Marker'])
@@ -191,7 +179,7 @@ def plot_correlation_boxplot(corr_nucleus_all, corr_marker_all, entropy_all, sav
     # Save or show
     if save_dir:
         os.makedirs(save_dir, exist_ok=True)
-        plt.savefig(os.path.join(save_dir, f"rollout_correlation_entropy_boxplot.png"),
+        plt.savefig(os.path.join(save_dir, f"rollout_{corr_method}_correlation_entropy_boxplot.png"),
                     dpi=300, bbox_inches="tight", facecolor=fig.get_facecolor())
         plt.close()
     else:
@@ -211,19 +199,19 @@ def extract_path(paths, path_to_plot):
         return None
 
 
-def run_one_sample(paths, path_to_plot, attn_maps,labels, min_attn_threshold = None, heads_reduce_fn = None, start_layer_index = None, save_dir=None):
+def run_one_sample(paths, path_to_plot, attn_maps,labels, min_attn_threshold = None, heads_reduce_fn = None, start_layer_index = None, corr_method = None, save_dir=None):
     # get specific sample by path name 
     index, path = extract_path(paths, path_to_plot)
     sample_attn = attn_maps[index]
     label = labels.iloc[index].full_label
     img_path, tile, site = Parse_Path_Item(path)
     file_name = path.File_Name
-    attn_map, heatmap_colored, corr_nucleus, corr_marker, entropy = compute_parameters(img_path, tile, sample_attn, min_attn_threshold, heads_reduce_fn, start_layer_index)
-    plot_fig(img_path, tile, site, file_name, label, attn_map, heatmap_colored, corr_nucleus, corr_marker, entropy, save_dir)
+    attn_map, heatmap_colored, corr_nucleus, corr_marker, entropy = compute_parameters(img_path, tile, sample_attn, min_attn_threshold, heads_reduce_fn, start_layer_index, corr_method)
+    plot_fig(img_path, tile, site, file_name, label, attn_map, heatmap_colored, corr_nucleus, corr_marker, entropy, corr_method, save_dir)
 
 
 
-def run_all_samples(paths, attn_maps,labels, min_attn_threshold = None, heads_reduce_fn = None, start_layer_index = None, save_dir=None):
+def run_all_samples(paths, attn_maps,labels, min_attn_threshold = None, heads_reduce_fn = None, start_layer_index = None, corr_method = None, save_dir=None):
     corr_nucleus_all = []
     corr_marker_all = []
     entropy_all = []
@@ -232,20 +220,21 @@ def run_all_samples(paths, attn_maps,labels, min_attn_threshold = None, heads_re
         path = paths.iloc[index]
         img_path, tile, site = Parse_Path_Item(path)
         file_name = path.File_Name
-        attn_map, heatmap_colored, corr_nucleus, corr_marker, entropy = compute_parameters(img_path, tile, sample_attn, min_attn_threshold, heads_reduce_fn, start_layer_index)
+        attn_map, heatmap_colored, corr_nucleus, corr_marker, entropy = compute_parameters(img_path, tile, sample_attn, min_attn_threshold, heads_reduce_fn, start_layer_index, corr_method)
         corr_nucleus_all.append(corr_nucleus)
         corr_marker_all.append(corr_marker)
         entropy_all.append(entropy)
 
     # plot correlations across samples
-    plot_correlation_boxplot(corr_nucleus_all, corr_marker_all, entropy_all,  save_dir)
+    plot_correlation_boxplot(corr_nucleus_all, corr_marker_all, entropy_all, corr_method, save_dir)
 
-def main(run_all=False, min_attn_threshold=None, heads_reduce_fn = None, start_layer_index = None):
+def main(run_all=False, min_attn_threshold=None, heads_reduce_fn = None, start_layer_index = None, corr_method = None):
 
     input_dir = "./NOVA_rotation/attention_maps/attention_maps_output"
     run_name = "RotationDatasetConfig_Euc_Pairs_rollout"
     attn_maps_dir = os.path.join(input_dir, run_name, "raw/attn_maps/neurons/batch9")
-    save_dir =  os.path.join(input_dir, run_name,"layers_corr", f"threshold{min_attn_threshold:.1f}_{heads_reduce_fn.__name__}_start{start_layer_index}")
+    # save_dir =  os.path.join(input_dir, run_name,"layers_corr", f"threshold{min_attn_threshold:.1f}_{heads_reduce_fn.__name__}_start{start_layer_index}")
+    save_dir =  os.path.join(input_dir, run_name,"layers_corr", "Corr_Dubug")
 
     img_input_dir = "/home/projects/hornsteinlab/Collaboration/MOmaps/input/images/processed/spd2/SpinningDisk"
     samples_paths = ["batch9/WT/stress/G3BP1/rep1_R11_w3confCy5_s19_panelA_WT_processed.npy/0", 
@@ -266,11 +255,11 @@ def main(run_all=False, min_attn_threshold=None, heads_reduce_fn = None, start_l
     os.makedirs(save_dir, exist_ok=True)
 
     if run_all:
-        run_all_samples(paths, attn_maps,labels, min_attn_threshold, heads_reduce_fn, start_layer_index,save_dir=save_dir)
+        run_all_samples(paths, attn_maps,labels, min_attn_threshold, heads_reduce_fn, start_layer_index, corr_method,save_dir=save_dir)
     else:
         for path_name_to_plot in samples_paths:
             path_to_plot = os.path.join(img_input_dir, path_name_to_plot)
-            run_one_sample(paths, path_to_plot, attn_maps,labels, min_attn_threshold, heads_reduce_fn, start_layer_index,save_dir=save_dir)
+            run_one_sample(paths, path_to_plot, attn_maps,labels, min_attn_threshold, heads_reduce_fn, start_layer_index,corr_method,save_dir=save_dir)
 
 
 
@@ -279,19 +268,21 @@ if __name__ == "__main__":
 
     # Define parameter grid
     run_all_options = [False, True]
-    min_attn_threshold_options = np.arange(0, 0.5, 0.1) # 0 to 0.4
+    min_attn_threshold_options = [0.2] #np.arange(0, 0.5, 0.1) # 0 to 0.4
     heads_reduce_fn_options = [np.mean]
-    start_layer_index_options = [0, 1]
+    start_layer_index_options = [0]
+    correlation_methods = ["pearsonr", "mutual_info", "ssim", "attn_overlap"]
+
 
     # Iterate over all combinations
-    for run_all, min_attn_threshold, heads_reduce_fn, start_layer_index in itertools.product(
-        run_all_options, min_attn_threshold_options, heads_reduce_fn_options, start_layer_index_options
+    for run_all, min_attn_threshold, heads_reduce_fn, start_layer_index, corr_method in itertools.product(
+        run_all_options, min_attn_threshold_options, heads_reduce_fn_options, start_layer_index_options, correlation_methods
     ):
         print(f"Running: run_all={run_all}, min_attn_threshold={min_attn_threshold}, "
             f"heads_reduce_fn={heads_reduce_fn.__name__}, start_layer_index={start_layer_index}")
         
         # Call your main function with the current parameter set
-        main(run_all, min_attn_threshold, heads_reduce_fn, start_layer_index)
+        main(run_all, min_attn_threshold, heads_reduce_fn, start_layer_index, corr_method)
 
     print("Done.")
 
