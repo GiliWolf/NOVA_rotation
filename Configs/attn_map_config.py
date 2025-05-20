@@ -21,9 +21,15 @@ class PlotAttnMapConfig(BaseConfig):
         # Controls layout size of the output figure.
         self.FIG_SIZE:tuple = None
 
+        self.SAVE_SEPERATE_LAYERS:bool = None # for "all_layers" attention methods. if True saves each layer in distinct figure (in addition to all-layers-one-fig)
+
+        self.ALL_LAYERS_FIG_SIZE:tuple = None
+
         self.PLOT_SUPTITLE_FONTSIZE:int = None # main title font size
 
         self.PLOT_TITLE_FONTSIZE:int = None # each sub-figure font size
+
+        self.PLOT_LAYER_FONTSIZE:int = None # each layer, for SAVE_SEPERATE_LAYERS = True
 
         self.PLOT_SAVEFIG_DPI:int = None # controls the resolution of saved figures.
 
@@ -42,6 +48,8 @@ class PlotAttnMapConfig(BaseConfig):
         self.REDUCE_HEAD_FUNC:str = None
 
         self.MIN_ATTN_THRESHOLD:float = None
+
+        self.CORR_METHOD:str = None
 
 
     

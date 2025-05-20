@@ -53,7 +53,17 @@ def corr_attn_overlap(m1, m2, m2_binary_perc = 0.9):
     score = (m1[m2_mask].sum()) / m2_mask.sum() #normalize by the mask size
     return score
 
+def normalize(v1):
+    denom = v1.max() - v1.min()
+    if denom == 0:
+        return np.zeros_like(v1)
+    else:
+        return (v1 - v1.min()) / denom
+
 def compute_correlation(attn, img_ch, corrleation_method:str):
+    # make sure both are normalized
+    attn = normalize(attn) 
+    img_ch = normalize(img_ch)
     return globals()[f"corr_{corrleation_method}"](attn, img_ch)
 
 

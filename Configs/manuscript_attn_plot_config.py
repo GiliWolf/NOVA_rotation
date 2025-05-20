@@ -18,9 +18,15 @@ class InitialAttnMapPlotConfig(PlotAttnMapConfig):
         # Controls layout size of the output figure.
         self.FIG_SIZE:tuple = (12, 4)
 
-        self.PLOT_SUPTITLE_FONTSIZE:int = 12 # main title font size
+        self.SAVE_SEPERATE_LAYERS:bool = False
 
-        self.PLOT_TITLE_FONTSIZE:int = 11 # each sub-figure font size
+        self.ALL_LAYERS_FIG_SIZE:tuple = (13, 11)
+
+        self.PLOT_SUPTITLE_FONTSIZE:int = 14 # main title font size
+
+        self.PLOT_TITLE_FONTSIZE:int = 12 # each sub-figure font size
+
+        self.PLOT_LAYER_FONTSIZE:int = 10 # each layer, for SAVE_SEPERATE_LAYERS = True
 
         self.PLOT_SAVEFIG_DPI:int = 300 # controls the resolution of saved figures.
 
@@ -33,8 +39,10 @@ class InitialAttnMapPlotConfig(PlotAttnMapConfig):
         self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/pairs/euclidean"
 
         # attention method 
-        self.ATTN_METHOD:str = "rollout"
+        self.ATTN_METHOD:str = "all_layers" #[""rollout","all_layers"]
 
         self.REDUCE_HEAD_FUNC:str = "mean"
 
-        self.MIN_ATTN_THRESHOLD:float = 0.2
+        self.MIN_ATTN_THRESHOLD:float = 0.25
+
+        self.CORR_METHOD:str = "pearsonr" #options: ["pearsonr", "mutual_info", "ssim", "attn_overlap"]

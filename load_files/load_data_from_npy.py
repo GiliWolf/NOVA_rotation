@@ -137,9 +137,11 @@ def load_tile(path, tile):
     marker = site_image[:, :, 0]
     nucleus = site_image[:, :, 1]
 
-    # Normalize
-    marker = np.clip(marker, 0, 1)
-    nucleus = np.clip(nucleus, 0, 1)
+    # # Normalize
+    # marker1 = (marker - marker.min()) / (marker.max() - marker.min())
+    # nucleus1 = (nucleus - nucleus.min()) / (nucleus.max() - nucleus.min())
+    # marker2 = np.clip(marker, 0, 1)
+    # nucleus2 = np.clip(nucleus, 0, 1)
 
     # Create RGB overlay: Red for marker, Green for nucleus
     overlay = np.zeros((*marker.shape, 3))
@@ -176,8 +178,9 @@ def display_tile(Site:str, tile:int, marker:np.array, nucleus:np.array, overlay:
 
 
 if __name__ == "__main__":
-    input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output/RotationDatasetConfig_Euc_Pairs_all_layers/raw/attn_maps/neurons/batch9"
-    emb_df = load_paths_from_npy(input_dir, "testset")
-    print(np.array(emb_df[emb_df["File_Name"] == "rep1_R11_w3confCy5_s26_panelA_WT_processed"].Path))
+    # input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output/RotationDatasetConfig_Euc_Pairs_all_layers/raw/attn_maps/neurons/batch9"
+    # emb_df = load_paths_from_npy(input_dir, "testset")
+    # print(np.array(emb_df[emb_df["File_Name"] == "rep1_R11_w3confCy5_s26_panelA_WT_processed"].Path))
 
-    #'/home/projects/hornsteinlab/Collaboration/MOmaps/input/images/processed/spd2/SpinningDisk/batch9/WT/stress/G3BP1/rep1_R11_w3confCy5_s60_panelA_WT_processed.npy/1
+    img_path = "/home/projects/hornsteinlab/Collaboration/MOmaps/input/images/processed/spd2/SpinningDisk/batch9/WT/stress/G3BP1/rep1_R11_w3confCy5_s60_panelA_WT_processed.npy"
+    load_tile(img_path, 1)
