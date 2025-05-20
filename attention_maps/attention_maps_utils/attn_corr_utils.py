@@ -82,4 +82,4 @@ def compute_parameters(attn_map, channels, corr_method = "pearsonr"):
     layer_ent = entropy(attn_probs, base=2)  # base-2 entropy (bits)
     normalized_ent = layer_ent / np.log2(len(attn_probs))  # normalize to [0, 1]
 
-    return corrs, normalized_ent, corr_method
+    return corrs, normalized_ent

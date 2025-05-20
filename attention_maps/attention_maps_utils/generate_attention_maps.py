@@ -71,13 +71,16 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     paths = __extract_samples_to_plot(paths, samples_indices, data_config = config_data)
 
     # save the raw attn_map (AFTER FILTERING)
-    save_attn_maps(attn_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "raw")) #attn_method=config_plot.ATTN_METHOD??
+    #save_attn_maps(attn_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "raw"))
  
     # process and plot attn_maps (AFTER FILTERING)
-    proccesed_attn_maps = plot_attn_maps(attn_maps, labels, paths, config_data, config_plot, output_folder_path=os.path.join(outputs_folder_path, "figures"))
+    proccesed_attn_maps, corr_data = plot_attn_maps(attn_maps, labels, paths, config_data, config_plot, output_folder_path=os.path.join(outputs_folder_path, "figures"))
 
     # save the processed attn_map (AFTER FILTERING)
-    save_attn_maps(proccesed_attn_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "processed"))
+    #save_attn_maps(proccesed_attn_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "processed", config_plot.ATTN_METHOD))
+
+    # save the correlation data between the attn maps and input images
+    save_corr_data(corr_data, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "correlations", config_plot.CORR_METHOD))
 
 
 def generate_attn_maps(model:NOVAModel, config_data:DatasetConfig, 
@@ -170,6 +173,47 @@ def save_attn_maps(attn_maps:List[np.ndarray[torch.Tensor]],
             logging.info(f'[save_attn_maps] Finished {set_type} set, saved in {batch_save_path}')
 
 
+def save_corr_data(corr_data:List[np.ndarray[torch.Tensor]], 
+                    labels:List[np.ndarray[str]], paths:List[np.ndarray[str]],
+                    data_config:DatasetConfig, output_folder_path:str)->None:
+    unique_batches = get_unique_parts_from_labels(labels[0], get_batches_from_labels, data_config)
+    logging.info(f'[save_corr_data] unique_batches: {unique_batches}')
+    
+    if data_config.SPLIT_DATA:
+        data_set_types = ['trainset','valset','testset']
+    else:
+        data_set_types = ['testset']
+        
+    for i, set_type in enumerate(data_set_types):
+        cur_corr_data, cur_labels, cur_paths = corr_data[i], labels[i], paths[i]
+        batch_of_label = get_batches_from_labels(cur_labels, data_config)
+        __dict_temp = {batch: np.where(batch_of_label==batch)[0] for batch in unique_batches}
+        for batch, batch_indexes in __dict_temp.items():
+            # create folder if needed
+            batch_save_path = os.path.join(output_folder_path, data_config.EXPERIMENT_TYPE, batch)
+            os.makedirs(batch_save_path, exist_ok=True)
+            
+            if not data_config.SPLIT_DATA:
+                # If we want to save a full batch (without splittint to train/val/test), the name still will be testset.npy.
+                # This is why we want to make sure that in this case, we never saved already the train/val/test sets, because this would mean this batch was used as training batch...
+                if os.path.exists(os.path.join(batch_save_path,f'trainset_labels.npy')) or os.path.exists(os.path.join(batch_save_path,f'valset_labels.npy')):
+                    logging.warning(f"[save_corr_data] SPLIT_DATA={data_config.SPLIT_DATA} BUT there exists trainset or valset in folder {batch_save_path}!! make sure you don't overwrite the testset!!")
+            logging.info(f"[save_corr_data] Saving {len(batch_indexes)} in {batch_save_path}")
+
+            # Extract lists
+            for ch_index in range(len(cur_corr_data[0])):
+                corr_list = [item[0][ch_index] for item in cur_corr_data]
+                np.save(os.path.join(batch_save_path,f'{set_type}_corrs_ch{ch_index}.npy'), np.array(corr_list)[batch_indexes])
+            
+            ent_list = [item[1] for item in cur_corr_data]
+            np.save(os.path.join(batch_save_path,f'{set_type}_ent.npy'), np.array(ent_list)[batch_indexes])
+  
+
+            logging.info(f'[save_corr_data] Finished {set_type} set, saved in {batch_save_path}')
+
+
+
+
 
 def __generate_attn_maps_with_dataloader(dataset:DatasetNOVA, model:NOVAModel, batch_size:int=700, 
                                           num_workers:int=6)->Tuple[np.ndarray[torch.Tensor], np.ndarray[str]]:
@@ -253,6 +297,7 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
         data_set_types = ['testset']
     
     all_attn_maps = []
+    all_corr_data = []
     for i, set_type in enumerate(data_set_types):
         cur_attn_maps, cur_labels, cur_paths = attn_maps[i], labels[i], paths[i]
 
@@ -261,6 +306,7 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
         logging.info(f'[plot_attn_maps]: for set {set_type}, starting plotting {len(cur_paths)} samples.')
         
         set_attn_maps = []
+        set_corr_data = []
         for index, (sample_attn, label, img_path) in enumerate(zip(cur_attn_maps, cur_labels, cur_paths)):
             # load img details
             path_item = img_path_df.iloc[index]
@@ -269,11 +315,14 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
             # plot
             temp_output_folder_path = os.path.join(output_folder_path, set_type, os.path.basename(img_path).split('.npy')[0])
             os.makedirs(temp_output_folder_path, exist_ok=True)
-            attn_map = __plot_attn(sample_attn, (img_path, site, tile, label), img_shape, config_plot, temp_output_folder_path)
+            attn_map, corr_data = __plot_attn(sample_attn, (img_path, site, tile, label), img_shape, config_plot, temp_output_folder_path)
             set_attn_maps.append(attn_map)
+            set_corr_data.append(corr_data)
         set_attn_maps = np.stack(set_attn_maps)
+        #set_corr_data = np.stack(set_corr_data) #len: 105, list-len:3:[[list:len 2], float, str]
         all_attn_maps.append(set_attn_maps)
-    return all_attn_maps
+        all_corr_data.append(set_corr_data)
+    return all_attn_maps, all_corr_data
 
 
 
@@ -284,8 +333,8 @@ def __plot_attn(sample_attn: np.ndarray[float], sample_info:tuple, img_shape:tup
     logging.info(f"[plot_attn_maps] dimensions: {num_layers} layers, {num_heads} heads, {num_patches} patches, {img_shape} img_shape")
 
     attn_method = config_plot.ATTN_METHOD
-    attn_map = globals()[f"_plot_attn_map_{attn_method}"](sample_attn, sample_info, patch_dim, img_shape, config_plot, output_folder_path)
-    return attn_map
+    attn_maps, corr_data = globals()[f"_plot_attn_map_{attn_method}"](sample_attn, sample_info, patch_dim, img_shape, config_plot, output_folder_path)
+    return attn_maps, corr_data
 
 def _plot_attn_map_all_layers(attn, sample_info, patch_dim, img_shape, config_plot, output_folder_path):
     # Sample Info
@@ -298,23 +347,23 @@ def _plot_attn_map_all_layers(attn, sample_info, patch_dim, img_shape, config_pl
     attn = __attn_map_all_layers(attn, attn_layer_dim=0, heads_reduce_fn=REDUCE_HEAD_FUNC_MAP[config_plot.REDUCE_HEAD_FUNC])
     num_layers, _, _= attn.shape #(num_layers, num_patches, num_patches)
     attn_maps_all_layers = []
-    corr_parameters_all_layers = []
+    corr_data_all_layers = []
     heatmap_colored_all_layers = []
     for layer_idx in range(num_layers):
         layer_attn = attn[layer_idx]
         layer_attn_map, heatmap_colored = __process_attn_map(layer_attn, patch_dim, img_shape, min_attn_threshold=config_plot.MIN_ATTN_THRESHOLD, heatmap_color=config_plot.PLOT_HEATMAP_COLORMAP)
         attn_maps_all_layers.append(layer_attn_map.flatten())
         heatmap_colored_all_layers.append(heatmap_colored)
-        corr_parameters = compute_parameters(layer_attn_map, [nucleus, marker], corr_method = config_plot.CORR_METHOD)
-        corr_parameters_all_layers.append(corr_parameters)
+        corr_data = compute_parameters(layer_attn_map, [nucleus, marker], corr_method = config_plot.CORR_METHOD)
+        corr_data_all_layers.append(corr_data)
         if config_plot.SAVE_SEPERATE_LAYERS:
-            __create_attn_map_img(layer_attn_map, input_img, heatmap_colored,config_plot, corr_parameters, sup_title =f"Site{site}_Tile{tile}_Layer{layer_idx}\n{label}",  output_folder_path=output_folder_path)
+            __create_attn_map_img(layer_attn_map, input_img, heatmap_colored,config_plot, corr_data, sup_title =f"Site{site}_Tile{tile}_Layer{layer_idx}\n{label}",  output_folder_path=output_folder_path)
     
     
     # plot all layers in one figure
-    __create_all_layers_attn_map_img(heatmap_colored_all_layers, input_img, config_plot, corr_parameters_all_layers, sup_title = f"Site{site}_Tile{tile}_All_Layers\n{label}", output_folder_path = output_folder_path)
+    __create_all_layers_attn_map_img(heatmap_colored_all_layers, input_img, config_plot, corr_data_all_layers, sup_title = f"Site{site}_Tile{tile}_All_Layers\n{label}", output_folder_path = output_folder_path)
     attn_maps_all_layers = np.stack(attn_maps_all_layers)
-    return attn_maps_all_layers
+    return attn_maps_all_layers, corr_data_all_layers
 
 def _plot_attn_map_rollout(attn, sample_info, patch_dim, img_shape, config_plot, output_folder_path):
     # Sample Info
@@ -326,13 +375,13 @@ def _plot_attn_map_rollout(attn, sample_info, patch_dim, img_shape, config_plot,
     # Attn workflow
     attn = __attn_map_rollout(attn, attn_layer_dim=0, heads_reduce_fn=REDUCE_HEAD_FUNC_MAP[config_plot.REDUCE_HEAD_FUNC])
     attn_map, heatmap_colored = __process_attn_map(attn, patch_dim, img_shape, min_attn_threshold=config_plot.MIN_ATTN_THRESHOLD, heatmap_color=config_plot.PLOT_HEATMAP_COLORMAP)
-    corr_parameters = compute_parameters(attn_map, [nucleus, marker], corr_method = config_plot.CORR_METHOD)
-    __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, corr_parameters,  sup_title= f"Site{site}_Tile{tile}_Rollout\n{label}", output_folder_path= output_folder_path)
-    return attn_map.flatten()
+    corr_data = compute_parameters(attn_map, [nucleus, marker], corr_method = config_plot.CORR_METHOD)
+    __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, corr_data, corr_method = config_plot.CORR_METHOD, sup_title= f"Site{site}_Tile{tile}_Rollout\n{label}", output_folder_path= output_folder_path)
+    return attn_map.flatten(), corr_data
 
 
 
-def __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, corr_parameters = None, sup_title = "Attention Maps", output_folder_path = None):
+def __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, corr_data = None, corr_method = None, sup_title = "Attention Maps", output_folder_path = None):
         """
             Create attention map img with:
                 (1) input image 
@@ -346,7 +395,7 @@ def __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, cor
                             ** assuming  Green = nucleus, Blue = marker, Red = zeroed out
                 heatmap_colored: attention map colored by heatmap_color (3,H,W)
                 config_plot: config with the plotting parameters 
-                corr_parameters: [optional] tuple of corrletion of the attention with the image channels, entropy and corr_method
+                corr_data: [optional] tuple of corrletion of the attention with the image channels, entropy and corr_method
                 sup_title: [optional] main title for the figure
                 output_folder_path: [optional] for saving the output fig.
 
@@ -360,8 +409,8 @@ def __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, cor
 
         fig, ax = plt.subplots(1, 3, figsize=config_plot.FIG_SIZE)
 
-        if corr_parameters:
-            corrs, entropy, corr_method = corr_parameters
+        if corr_data:
+            corrs, entropy = corr_data
             corr_nucleus, corr_marker = corrs[0], corrs[1]
             ax[1].text(0.5, -0.25, f"{corr_method} Correlation (Nucleus): {corr_nucleus:.2f}\n{corr_method} Correlation (Marker): {corr_marker:.2f}\nEntropy: {entropy:.2f}",
                     transform=ax[1].transAxes, ha='center', va='center', fontsize=config_plot.PLOT_TITLE_FONTSIZE, color='black')
@@ -400,52 +449,52 @@ def __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, cor
         return fig
 
 
-def __create_all_layers_attn_map_img(attn_maps, input_img, config_plot, corr_parameters_list = None, sup_title = "Attention Maps", output_folder_path = None):
+def __create_all_layers_attn_map_img(attn_maps, input_img, config_plot, corr_data_list = None, corr_method = None, sup_title = "Attention Maps", output_folder_path = None):
  
 
-    fig = plt.figure(figsize=config_plot.ALL_LAYERS_FIG_SIZE, facecolor="#d3ebe3")
-    gs = gridspec.GridSpec(2, 1, height_ratios=[1, 3], hspace=0.2)
+        fig = plt.figure(figsize=config_plot.ALL_LAYERS_FIG_SIZE, facecolor="#d3ebe3")
+        gs = gridspec.GridSpec(2, 1, height_ratios=[1, 3], hspace=0.2)
 
-    # Main title
-    fig.suptitle(f"{sup_title}\n\n", fontsize=config_plot.PLOT_SUPTITLE_FONTSIZE, fontweight='bold', y=0.98)
+        # Main title
+        fig.suptitle(f"{sup_title}\n\n", fontsize=config_plot.PLOT_SUPTITLE_FONTSIZE, fontweight='bold', y=0.98)
 
-    # Overlay section 
-    ax_overlay = plt.subplot(gs[0])
-    ax_overlay.imshow(input_img)
-    ax_overlay.set_title("Input Image", fontsize=config_plot.PLOT_TITLE_FONTSIZE, fontweight='bold', pad=10)
-    ax_overlay.axis("off")
+        # Overlay section 
+        ax_overlay = plt.subplot(gs[0])
+        ax_overlay.imshow(input_img)
+        ax_overlay.set_title("Input Image", fontsize=config_plot.PLOT_TITLE_FONTSIZE, fontweight='bold', pad=10)
+        ax_overlay.axis("off")
 
-    # Attention maps section 
-    gs_attn = gridspec.GridSpecFromSubplotSpec(3, 4, subplot_spec=gs[1], wspace=0.3, hspace=0.8)
-    fig.text(0.5, 0.68, "Attention Maps", ha='center', va='center', fontsize=config_plot.PLOT_TITLE_FONTSIZE, fontweight='bold')
+        # Attention maps section 
+        gs_attn = gridspec.GridSpecFromSubplotSpec(3, 4, subplot_spec=gs[1], wspace=0.3, hspace=0.8)
+        fig.text(0.5, 0.68, "Attention Maps", ha='center', va='center', fontsize=config_plot.PLOT_TITLE_FONTSIZE, fontweight='bold')
 
 
-    for layer_idx, (attn_map, corr_parameters) in enumerate(zip(attn_maps, corr_parameters_list)):
+        for layer_idx, (attn_map, corr_data) in enumerate(zip(attn_maps, corr_data_list)):
 
-        # plot layer attn maps
-        ax = plt.subplot(gs_attn[layer_idx])  
-        ax.imshow(cv2.cvtColor(attn_map, cv2.COLOR_BGR2RGB))
-        ax.set_title(f"Layer {layer_idx}", fontsize=config_plot.PLOT_TITLE_FONTSIZE, fontweight='bold')
-        ax.axis("off")
+            # plot layer attn maps
+            ax = plt.subplot(gs_attn[layer_idx])  
+            ax.imshow(cv2.cvtColor(attn_map, cv2.COLOR_BGR2RGB))
+            ax.set_title(f"Layer {layer_idx}", fontsize=config_plot.PLOT_TITLE_FONTSIZE, fontweight='bold')
+            ax.axis("off")
 
-        # Add correlation values below the attention map
-        if corr_parameters:
-            corrs, layer_ent, corr_method = corr_parameters
-            corr_nucleus, corr_marker = corrs[0], corrs[1]
-            ax.text(0.5, -0.25, f"{corr_method} Correlation (Nucleus): {corr_nucleus:.2f}\n{corr_method} Correlation (Marker): {corr_marker:.2f}\nEntropy: {layer_ent:.2f}", 
-                transform=ax.transAxes, ha='center', va='center', fontsize=config_plot.PLOT_LAYER_FONTSIZE, color='black')
-    
-    plt.tight_layout()
-    if config_plot.SAVE_PLOT and (output_folder_path is not None):
-            fig_name  = sup_title.split('\n', 1)[0] #either till the end of the line or the full str
-            save_path = os.path.join(output_folder_path, f"{fig_name}.png")
-            plt.savefig(save_path, bbox_inches='tight', dpi=config_plot.PLOT_SAVEFIG_DPI)
-            plt.close()
-    if config_plot.SHOW_PLOT:
-            plt.show()
+            # Add correlation values below the attention map
+            if corr_data:
+                corrs, layer_ent = corr_data
+                corr_nucleus, corr_marker = corrs[0], corrs[1]
+                ax.text(0.5, -0.25, f"{corr_method} Correlation (Nucleus): {corr_nucleus:.2f}\n{corr_method} Correlation (Marker): {corr_marker:.2f}\nEntropy: {layer_ent:.2f}", 
+                    transform=ax.transAxes, ha='center', va='center', fontsize=config_plot.PLOT_LAYER_FONTSIZE, color='black')
+        
+        plt.tight_layout()
+        if config_plot.SAVE_PLOT and (output_folder_path is not None):
+                fig_name  = sup_title.split('\n', 1)[0] #either till the end of the line or the full str
+                save_path = os.path.join(output_folder_path, f"{fig_name}.png")
+                plt.savefig(save_path, bbox_inches='tight', dpi=config_plot.PLOT_SAVEFIG_DPI)
+                plt.close()
+        if config_plot.SHOW_PLOT:
+                plt.show()
 
-    logging.info(f"[plot_attn_maps] attn maps saved: {save_path}")
-    return fig
+        logging.info(f"[plot_attn_maps] attn maps saved: {save_path}")
+        return fig
     
 
 def __process_attn_map(attn, patch_dim, img_shape, min_attn_threshold = None, heatmap_color = cv2.COLORMAP_JET):

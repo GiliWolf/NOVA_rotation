@@ -3,8 +3,6 @@ import os
 working_dir = os.getcwd()
 sys.path.append(working_dir)
 print(f"working_dir: {working_dir}")
-from NOVA_rotation.load_files.load_data_from_npy import load_paths_from_npy, load_labels_from_npy , load_npy_to_df, load_npy_to_nparray, load_tile, Parse_Path_Item
-from NOVA_rotation.attention_maps.attention_maps_utils.generate_attention_maps import __process_attn_map, __attn_map_rollout
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,6 +12,9 @@ from scipy.stats import entropy
 import cv2
 from matplotlib.colors import LinearSegmentedColormap
 import itertools
+
+from NOVA_rotation.load_files.load_data_from_npy import load_paths_from_npy, load_labels_from_npy , load_npy_to_df, load_npy_to_nparray, load_tile, Parse_Path_Item
+from NOVA_rotation.attention_maps.attention_maps_utils.generate_attention_maps import __process_attn_map, __attn_map_rollout
 
 
 def init_globals(attn_maps):
@@ -247,14 +248,7 @@ def main(run_all=False, min_attn_threshold=None, heads_reduce_fn = None, start_l
 
 
     img_input_dir = "/home/projects/hornsteinlab/Collaboration/MOmaps/input/images/processed/spd2/SpinningDisk"
-    samples_paths = ["batch9/WT/stress/G3BP1/rep1_R11_w3confCy5_s19_panelA_WT_processed.npy/0", 
-                    "batch9/WT/stress/G3BP1/rep1_R11_w3confCy5_s38_panelA_WT_processed.npy/1",
-                    "batch9/WT/Untreated/G3BP1/rep1_R11_w3confCy5_s204_panelA_WT_processed.npy/2",
-                    "batch9/WT/Untreated/G3BP1/rep1_R11_w3confCy5_s281_panelA_WT_processed.npy/8",
-                    "batch9/WT/stress/G3BP1/rep1_R11_w3confCy5_s26_panelA_WT_processed.npy/4",
-                    "batch9/WT/stress/G3BP1/rep1_R11_w3confCy5_s60_panelA_WT_processed.npy/1",
-                    "batch9/WT/Untreated/G3BP1/rep1_R11_w3confCy5_s208_panelA_WT_processed.npy/4",
-                    "batch9/WT/Untreated/G3BP1/rep1_R11_w3confCy5_s225_panelA_WT_processed.npy/1"]
+    samples_paths = []
 
     attn_maps = load_npy_to_nparray(attn_maps_dir, "testset_attn.npy") 
     labels = load_labels_from_npy(attn_maps_dir, "testset")
@@ -271,28 +265,10 @@ def main(run_all=False, min_attn_threshold=None, heads_reduce_fn = None, start_l
             path_to_plot = os.path.join(img_input_dir, path_name_to_plot)
             run_one_sample(paths, path_to_plot, attn_maps,labels, min_attn_threshold, heads_reduce_fn, start_layer_index,corr_method,save_dir=save_dir)
 
-
-
-
 if __name__ == "__main__":
 
-    # Define parameter grid
-    run_all_options = [False, True]
-    min_attn_threshold_options = [0.2] #np.arange(0, 0.5, 0.1) # 0 to 0.4
-    heads_reduce_fn_options = [np.mean]
-    start_layer_index_options = [0]
-    correlation_methods = ["pearsonr", "mutual_info", "ssim", "attn_overlap"]
-
-
-    # Iterate over all combinations
-    for run_all, min_attn_threshold, heads_reduce_fn, start_layer_index, corr_method in itertools.product(
-        run_all_options, min_attn_threshold_options, heads_reduce_fn_options, start_layer_index_options, correlation_methods
-    ):
-        print(f"Running: run_all={run_all}, min_attn_threshold={min_attn_threshold}, "
-            f"heads_reduce_fn={heads_reduce_fn.__name__}, start_layer_index={start_layer_index}")
-        
-        # Call your main function with the current parameter set
-        main(run_all, min_attn_threshold, heads_reduce_fn, start_layer_index, corr_method)
+    # correlation_methods = ["pearsonr", "mutual_info", "ssim", "attn_overlap"]
+    main(run_all = True, min_attn_threshold = 0.2, heads_reduce_fn = np.mean, start_layer_index = 0, corr_method = "pearsonr")
 
     print("Done.")
 
