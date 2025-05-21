@@ -182,5 +182,9 @@ if __name__ == "__main__":
     # emb_df = load_paths_from_npy(input_dir, "testset")
     # print(np.array(emb_df[emb_df["File_Name"] == "rep1_R11_w3confCy5_s26_panelA_WT_processed"].Path))
 
-    img_path = "/home/projects/hornsteinlab/Collaboration/MOmaps/input/images/processed/spd2/SpinningDisk/batch9/WT/stress/G3BP1/rep1_R11_w3confCy5_s60_panelA_WT_processed.npy"
-    load_tile(img_path, 1)
+    # img_path = "/home/projects/hornsteinlab/Collaboration/MOmaps/input/images/processed/spd2/SpinningDisk/batch9/WT/stress/G3BP1/rep1_R11_w3confCy5_s60_panelA_WT_processed.npy"
+    # load_tile(img_path, 1)
+
+    path = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output/Debug/correlations/pearsonr/neurons/batch9"
+    data = load_npy_to_nparray(path, "testset_corrs_ch0.npy")
+    print(data.shape)

@@ -39,10 +39,16 @@ class InitialAttnMapPlotConfig(PlotAttnMapConfig):
         self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/pairs/euclidean"
 
         # attention method 
-        self.ATTN_METHOD:str = "rollout" #["rollout","all_layers"]
+        self.ATTN_METHOD:str = "all_layers" #["rollout","all_layers"]
 
         self.REDUCE_HEAD_FUNC:str = "mean"
 
         self.MIN_ATTN_THRESHOLD:float = 0.25
 
         self.CORR_METHOD:str = "pearsonr" #options: ["pearsonr", "mutual_info", "ssim", "attn_overlap"]
+
+        self.PLOT_CORR_SUMMARY:bool = True
+        
+        self.PLOT_CORR_SEPERATE_MARKERS:bool = True
+
+        self.PLOT_CORR_ALL_MARKERS:bool = True
