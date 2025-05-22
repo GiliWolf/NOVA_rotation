@@ -53,7 +53,7 @@ if __name__ == "__main__":
             paths_df = load_npy_to_df(embd_dir, f"{set_type}_paths.npy", columns=['Path'])
             embeddings_df = load_npy_to_df(embd_dir, f"{set_type}.npy")
 
-
+            
             # split to groups
             labels_df[['protein', 'condition', 'treatment', 'batch', 'replicate']] = labels_df['full_label'].str.split('_', expand=True)
             grouped = labels_df.groupby(['protein', 'condition', 'treatment'])

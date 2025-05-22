@@ -185,6 +185,16 @@ if __name__ == "__main__":
     # img_path = "/home/projects/hornsteinlab/Collaboration/MOmaps/input/images/processed/spd2/SpinningDisk/batch9/WT/stress/G3BP1/rep1_R11_w3confCy5_s60_panelA_WT_processed.npy"
     # load_tile(img_path, 1)
 
-    path = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/attention_maps/attention_maps_output/Debug/correlations/pearsonr/neurons/batch9"
-    data = load_npy_to_nparray(path, "testset_corrs_ch0.npy")
-    print(data.shape)
+    path = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/pairs/euclidean/testset"
+    labels = load_npy_to_nparray(path, "testset_labels.npy")
+    paths = load_npy_to_nparray(path, "testset_paths.npy")
+    emb = load_npy_to_nparray(path, "testset.npy")
+
+    labels = labels[:10]
+    paths = paths[:10]
+    emb = emb[:10]
+
+    outpath = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/pairs/small_euclildean/testset"
+    np.save(os.path.join(outpath, "testset_labels.npy"), labels)
+    np.save(os.path.join(outpath, "testset_paths.npy"), paths)
+    np.save(os.path.join(outpath, "testset.npy"), emb)

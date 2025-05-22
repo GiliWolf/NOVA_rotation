@@ -36,7 +36,7 @@ class InitialAttnMapPlotConfig(PlotAttnMapConfig):
 
         self.SHOW_PLOT:bool = False
 
-        self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/pairs/euclidean"
+        self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/RotationDatasetConfig/pairs/small_euclildean"
 
         # attention method 
         self.ATTN_METHOD:str = "all_layers" #["rollout","all_layers"]
