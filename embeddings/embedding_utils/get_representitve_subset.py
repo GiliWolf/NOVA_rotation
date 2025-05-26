@@ -12,7 +12,7 @@ from NOVA.src.datasets.dataset_config import DatasetConfig
 from NOVA.src.figures.plot_config import PlotConfig
 from NOVA.src.common.utils import load_config_file
 from NOVA.src.datasets.label_utils import get_batches_from_labels, get_unique_parts_from_labels, get_markers_from_labels
-
+import logging
 
 
 def filter_by_labels(labels_df: pd.DataFrame,embeddings_df: pd.DataFrame,paths_df: pd.DataFrame, filters: dict
@@ -129,7 +129,7 @@ def extract_subset(marker_labels, marker_embeddings, marker_paths, metric, num_p
                 # Get indices for condition 1 and 2 samples
                 c1_indices = np.array(list(set([i for (_, (i, j)) in labeled_pairs])))
                 c2_indices = np.array(list(set([j for (_, (i, j)) in labeled_pairs])))
-                print(f"Selected {len(c1_indices)} {data_config.CONDITIONS[0]} samples and {len(c2_indices)} {data_config.CONDITIONS[1]} samples.")
+                logging.info(f"Selected {len(c1_indices)} {data_config.CONDITIONS[0]} samples and {len(c2_indices)} {data_config.CONDITIONS[1]} samples.")
 
                 # Save distances
                 distances_df = pd.DataFrame()
@@ -160,7 +160,7 @@ def extract_subset(marker_labels, marker_embeddings, marker_paths, metric, num_p
                 visualize_pairs(distances, flattened_distances, min_pairs, max_pairs, middle_pairs, metric, output_dir = output_dir)    
 
 
-def main(output_folder_path:str, config_path_data:str, metric:str, num_pairs:int):
+def main(input_folder_path:str, output_folder_path:str, config_path_data:str, metric:str, num_pairs:int):
 
     data_config:DatasetConfig = load_config_file(config_path_data, "data")
     data_config.OUTPUTS_FOLDER = output_folder_path
@@ -168,7 +168,8 @@ def main(output_folder_path:str, config_path_data:str, metric:str, num_pairs:int
     home_dir = os.getenv("HOME")
     emb_out_dir = "NOVA_rotation/embeddings/embedding_output"
     run_name = "RotationDatasetConfig"
-    embd_dir  = os.path.join(home_dir, emb_out_dir, run_name, "embeddings/neurons/batch9")
+    #embd_dir  = os.path.join(home_dir, emb_out_dir, run_name, "embeddings/neurons/batch9")
+    embd_dir = input_folder_path
 
 
     if data_config.SPLIT_DATA:
@@ -185,39 +186,49 @@ def main(output_folder_path:str, config_path_data:str, metric:str, num_pairs:int
         # split to groups
         labels_df[['marker', 'cell_line', 'condition', 'batch', 'replicate']] = labels_df['full_label'].str.split('_', expand=True)
         grouped = labels_df.groupby(['marker', 'cell_line', 'condition', 'batch'])
-        print(f"\nlabels groups for {set_type}:")
-        print(grouped.size())
+        logging.info(f"\nlabels groups for {set_type}:")
+        logging.info(grouped.size())
 
         batches_names = labels_df['batch'].unique()
         for batch in batches_names:
+            # filter by batch
             batch_labels, batch_embeddings, batch_paths = filter_by_labels(labels_df, embeddings_df, paths_df, {"batch":batch})
-
             if batch_labels.empty:
-                print(f"Error: No samples found.")
+                logging.info(f"Error: No samples found for batch {batch}. continues.")
                 continue
 
             marker_names = batch_labels['marker'].unique()
             for marker in marker_names:
+                # filter by marker
                 marker_labels, marker_embeddings, marker_paths = filter_by_labels(batch_labels, batch_embeddings, batch_paths, {"marker": marker})
                 if marker_labels.empty:
-                    print(f"Error: No samples found.")
+                    logging.info(f"Error: No samples found for marker {marker}. continues.")
                     continue
+
                 temp_output_dir = os.path.join(output_folder_path, data_config.EXPERIMENT_TYPE, batch, marker)
                 os.makedirs(temp_output_dir, exist_ok=True)
 
+                # run extraction of subset logic
                 extract_subset(marker_labels, marker_embeddings, marker_paths, metric, num_pairs, set_type, data_config, temp_output_dir)
                 
                             
 if __name__ == "__main__":
     try:
-        if len(sys.argv) < 5:
-            raise ValueError("Invalid arguments. Must supply outputs folder path, data config, metric and num of pairs")
-        outputs_folder_path = sys.argv[1]
-        config_path_data = sys.argv[2]
-        metric = sys.argv[3]
-        num_pairs = int(sys.argv[4])
+        if len(sys.argv) < 4:
+            raise ValueError("Invalid arguments. Must supply input folder path, outputs folder path, data config.")
+        input_folder_path = sys.argv[1]
+        outputs_folder_path = sys.argv[2]
+        config_path_data = sys.argv[3]
+        if  len(sys.argv) >= 5:
+            metric = sys.argv[4]
+        else:
+            metric = "euclidean"
+        if  len(sys.argv) >= 6:
+            num_pairs = int(sys.argv[5])
+        else:
+            num_pairs = 25
 
-        main(outputs_folder_path, config_path_data,  metric, num_pairs)
+        main(input_folder_path, outputs_folder_path, config_path_data,  metric, num_pairs)
         
     except Exception as e:
         print(e)

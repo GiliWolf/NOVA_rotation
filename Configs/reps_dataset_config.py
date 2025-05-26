@@ -3,9 +3,9 @@ import sys
 from typing import List, Tuple
 sys.path.insert(1, os.getenv("NOVA_HOME"))
 from src.common.base_config import BaseConfig
+from src.embeddings.embeddings_config import EmbeddingsConfig
 
-
-class RotationDatasetConfig(BaseConfig):
+class EmbeddingsB9DatasetConfig(EmbeddingsConfig):
     def __init__(self):
         
         super().__init__()
@@ -49,28 +49,33 @@ class RotationDatasetConfig(BaseConfig):
         self.CONDITIONS:List[str]         = ["stress", "Untreated"]
         ##
 
-        # Reps to include
-        self.REPS:List[str]               = None
 
-        # The percentage of the data that goes to the training set
-        self.TRAIN_PCT:float              = 0.7
+# ONLY TDP
+class EmbeddingsdNLSB4DatasetConfig(EmbeddingsConfig):
+    def __init__(self):
+        super().__init__()
 
-        # Should shuffle the data within each batch collected?
-        ##Must be true whenever using SPLIT_DATA=True otherwise train,val,test set won't be the same as when shuffle was true
-
-        # CHANGED: false so it will keep same order 
-        self.SHUFFLE:bool                 = False     
+        self.INPUT_FOLDERS = [os.path.join(self.PROCESSED_FOLDER_ROOT, "spd2", "SpinningDisk", "deltaNLS", f) for f in 
+                        ["batch4"]]
         
-        # Should add the cell line to the label?
-        self.ADD_LINE_TO_LABEL:bool = True
+        self.SPLIT_DATA = False
+        self.EXPERIMENT_TYPE = 'deltaNLS'
+        self.MARKERS_TO_EXCLUDE = [
+            "ANXA11", "CD41", "DAPI", "G3BP1", "FMRP", "FUS", "KIF5A", "mitotracker", "NEMO", "PEX14", 
+            "PML", "PURA", "SQSTM1", "TIA1", "Calreticulin", "CLTC", "DCP1A", "GM130", 
+            "LAMP1", "NCL", "NONO", "Phalloidin", "PSD95", "SCNA", "TOMM20"
+        ] #everything except  "TDP43"
 
-        # Should add condition to the label?
-        self.ADD_CONDITION_TO_LABEL:bool = True 
+        self.ADD_BATCH_TO_LABEL = True
+        self.ADD_REP_TO_LABEL = True
 
-        # Number of channels per image
-        self.NUM_CHANNELS:int = 2
+        self.MARKERS:List[str]            =  ["TDP43B"]
 
-        # The size of each image (width,height)
-        self.IMAGE_SIZE:Tuple[int, int] = (100,100)
+        # Cell lines to include
+        self.CELL_LINES:List[str]         = ["TDP43"]
 
-        ################################
+        # Conditions to include
+        self.CONDITIONS:List[str]         = ["dox", "Untreated"]
+
+        
+      
