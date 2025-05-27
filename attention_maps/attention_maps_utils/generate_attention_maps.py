@@ -58,9 +58,9 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     attn_maps, labels, paths = generate_attn_maps(model, config_data, batch_size=batch_size)
     
     # OUTPUT 
-    input_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation"
-    run_name = "Small_set"
-    outputs_folder_path = os.path.join(input_dir, "attention_maps/attention_maps_output", run_name)
+    home_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation"
+    run_name = os.path.basename(config_path_data)
+    outputs_folder_path = os.path.join(home_dir, "attention_maps/attention_maps_output", run_name)
 
     # filter by path names 
     samples_indices = __extract_indices_to_plot(keep_samples_dir=config_plot.SAMPLES_PATH, paths = paths, data_config = config_data)
@@ -291,8 +291,7 @@ def __extract_indices_to_plot(keep_samples_dir:str, paths: np.ndarray[str], data
     all_samples_indices = []
     for i, set_type in enumerate(data_set_types):
         cur_paths = paths[i]
-        temp_keep_samples_dir = os.path.join(keep_samples_dir, set_type)
-        keep_paths_df = load_paths_from_npy(temp_keep_samples_dir, set_type)
+        keep_paths_df = load_paths_from_npy(keep_samples_dir, set_type)
         paths_df = parse_paths(cur_paths)
         samples_indices = paths_df[paths_df["Path"].isin(keep_paths_df["Path"])].index.tolist()
         all_samples_indices.append(samples_indices)

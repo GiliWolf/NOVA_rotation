@@ -7,7 +7,7 @@ import pandas as pd
 import sys
 import os
 sys.path.insert(0, os.getenv("HOME"))
-from NOVA_rotation.load_files.load_data_from_npy import load_npy_to_df, load_npy_to_nparray
+from NOVA_rotation.load_files.load_data_from_npy import load_npy_to_df, load_npy_to_nparray, load_paths_from_npy
 from NOVA.src.datasets.dataset_config import DatasetConfig
 from NOVA.src.figures.plot_config import PlotConfig
 from NOVA.src.common.utils import load_config_file
@@ -69,6 +69,9 @@ def get_pairs(flattened_distances, n_pairs, dim2):
     return min_pairs, max_pairs, middle_pairs
 
 def visualize_pairs(distances, flattened_distances, min_pairs, max_pairs, middle_pairs, metric, output_dir=None):
+    """
+        create a distribution plot of the distanced and marker the pairs on top of it.
+    """
     # Distances of selected pairs
     selected_min_distances = [distances[i, j] for i, j in min_pairs]
     selected_max_distances = [distances[i, j] for i, j in max_pairs]
@@ -101,6 +104,13 @@ def visualize_pairs(distances, flattened_distances, min_pairs, max_pairs, middle
 
 
 def extract_subset(marker_labels, marker_embeddings, marker_paths, metric, num_pairs, set_type, data_config, output_dir):
+                """
+                extract subset of samples from marker_embeddings by -
+                    1) computing all pair-wise distances
+                    2) sorting the distances and taking the num_pairs with minimal/middle/maxinal distance
+                    3) save csv file with the distances
+                    4) extract data (emb, labels, paths) of the curresponding pairs and save them in npy files
+                """
                 filtered_labels_c1, filtered_embeddings_c1, filtered_paths_c1  = filter_by_labels(marker_labels, marker_embeddings, marker_paths, {'cell_line':data_config.CELL_LINES[0], 'condition':data_config.CONDITIONS[0]})
                 filtered_labels_c2, filtered_embeddings_c2, filtered_paths_c2 = filter_by_labels(marker_labels, marker_embeddings, marker_paths, {'cell_line':data_config.CELL_LINES[0], 'condition':data_config.CONDITIONS[1]})
                 
@@ -167,9 +177,6 @@ def main(input_folder_path:str, output_folder_path:str, config_path_data:str, me
 
     home_dir = os.getenv("HOME")
     emb_out_dir = "NOVA_rotation/embeddings/embedding_output"
-    run_name = "RotationDatasetConfig"
-    #embd_dir  = os.path.join(home_dir, emb_out_dir, run_name, "embeddings/neurons/batch9")
-    embd_dir = input_folder_path
 
 
     if data_config.SPLIT_DATA:
@@ -178,24 +185,25 @@ def main(input_folder_path:str, output_folder_path:str, config_path_data:str, me
         data_set_types = ['testset']
         
     for i, set_type in enumerate(data_set_types):
-        # load data
-        labels_df = load_npy_to_df(embd_dir,f"{set_type}_labels.npy", columns=['full_label'])
-        paths_df = load_npy_to_df(embd_dir, f"{set_type}_paths.npy", columns=['Path'])
-        embeddings_df = load_npy_to_df(embd_dir, f"{set_type}.npy")
+        # get batche names by all subdirs that starts with "batch"
+        temp_input_folder_path = os.path.join(input_folder_path, data_config.EXPERIMENT_TYPE)
+        batches_names = [name for name in os.listdir(temp_input_folder_path)
+              if os.path.isdir(os.path.join(temp_input_folder_path, name)) and name.lower().startswith("batch")]
+        if not batches_names:
+            logging.info(f"Error: No batches dirs found. exiting")
+            sys.exit()
 
-        # split to groups
-        labels_df[['marker', 'cell_line', 'condition', 'batch', 'replicate']] = labels_df['full_label'].str.split('_', expand=True)
-        grouped = labels_df.groupby(['marker', 'cell_line', 'condition', 'batch'])
-        logging.info(f"\nlabels groups for {set_type}:")
-        logging.info(grouped.size())
-
-        batches_names = labels_df['batch'].unique()
         for batch in batches_names:
-            # filter by batch
-            batch_labels, batch_embeddings, batch_paths = filter_by_labels(labels_df, embeddings_df, paths_df, {"batch":batch})
-            if batch_labels.empty:
-                logging.info(f"Error: No samples found for batch {batch}. continues.")
-                continue
+            temp_input_folder_path = os.path.join(input_folder_path, data_config.EXPERIMENT_TYPE, batch)
+            # load data
+            batch_labels = load_npy_to_df(temp_input_folder_path,f"{set_type}_labels.npy", columns=['full_label'])
+            batch_paths = load_npy_to_df(temp_input_folder_path, f"{set_type}_paths.npy", columns=['Path'])
+            batch_embeddings = load_npy_to_df(temp_input_folder_path, f"{set_type}.npy")
+
+            batch_labels[['marker', 'cell_line', 'condition', 'batch', 'replicate']] = batch_labels['full_label'].str.split('_', expand=True)
+            grouped = batch_labels.groupby(['marker', 'cell_line', 'condition', 'batch'])
+            logging.info(f"\nlabels groups for {set_type}:")
+            logging.info(grouped.size())
 
             marker_names = batch_labels['marker'].unique()
             for marker in marker_names:
@@ -205,7 +213,7 @@ def main(input_folder_path:str, output_folder_path:str, config_path_data:str, me
                     logging.info(f"Error: No samples found for marker {marker}. continues.")
                     continue
 
-                temp_output_dir = os.path.join(output_folder_path, data_config.EXPERIMENT_TYPE, batch, marker)
+                temp_output_dir = os.path.join(output_folder_path, metric, data_config.EXPERIMENT_TYPE, batch, marker)
                 os.makedirs(temp_output_dir, exist_ok=True)
 
                 # run extraction of subset logic

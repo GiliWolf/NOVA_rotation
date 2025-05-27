@@ -75,17 +75,16 @@ def parse_paths(paths):
     """
     args:
         paths:  list/array of full path of format: 
-                <path>/batchX/SCNA/Condition/Cell_Line/rep{X}_R11_w2confmCherry_s{X}_panel{X}_SCNA_processed.npy/{TILE}
+                <path>/batch{X}/{Cell_Line}/{Condition}/{Marker}/rep{X}_R11_w2confmCherry_s{X}_panel{X}_SCNA_processed.npy/{TILE}
     
     returns:
         df: parsed df woth columns: ["Batch", "Condition", "Rep", "Site", "Panel", "Cell_Line", "Tile", "Path"]
     """
 
-
     # Regex pattern to extract Batch, Condition, Rep, Raw Image Name, Panel, Cell Line, and Tile
     pattern = re.compile(
-    r".*/[Bb]atch(\d+)/[^/]*/(Untreated|stress)/[^/]*/(rep\d+)_.*_(s\d+)_?(panel\w+)_([^_]+)_processed\.npy/(\d+)"
-    )
+    r".*/[Bb]atch(\d+)/([^/]+)/([^/]+)/([^/]+)/(rep\d+)_.*_(s\d+)_?(panel\w+)_.*_processed\.npy/(\d+)"
+)
 
     # Parsing the paths
     parsed_data = [pattern.match(path).groups() for path in paths if pattern.match(path)]
@@ -93,7 +92,9 @@ def parse_paths(paths):
     if len(parsed_data) != len(paths):
         raise RuntimeError("in parse_paths: not all paths match the regex pattern.")
     # Convert metadata to DataFrame
-    df = pd.DataFrame(parsed_data, columns=["Batch", "Condition", "Rep", "Site", "Panel", "Cell_Line", "Tile"])
+    df = pd.DataFrame(parsed_data, columns=[
+    "Batch", "Cell_Line", "Condition", "Marker", "Rep", "Site", "Panel", "Tile"
+    ])
     df['Path'] = paths
     df['File_Name'] = [os.path.basename(path.split('.npy')[0]) for path in paths]
 
