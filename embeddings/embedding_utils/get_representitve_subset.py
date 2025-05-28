@@ -103,7 +103,7 @@ def visualize_pairs(distances, flattened_distances, min_pairs, max_pairs, middle
         plt.show()
 
 
-def extract_subset(marker_labels, marker_embeddings, marker_paths, metric, num_pairs, set_type, data_config, output_dir):
+def extract_subset(marker_labels:pd.DataFrame, marker_embeddings:pd.DataFrame, marker_paths:pd.DataFrame, metric:str, num_pairs:int, set_type:str, data_config:DatasetConfig, output_dir:str, mutual_attr:str = "cell_lines", compare_by_attr:str = "condition"):
                 """
                 extract subset of samples from marker_embeddings by -
                     1) computing all pair-wise distances
@@ -111,8 +111,13 @@ def extract_subset(marker_labels, marker_embeddings, marker_paths, metric, num_p
                     3) save csv file with the distances
                     4) extract data (emb, labels, paths) of the curresponding pairs and save them in npy files
                 """
-                filtered_labels_c1, filtered_embeddings_c1, filtered_paths_c1  = filter_by_labels(marker_labels, marker_embeddings, marker_paths, {'cell_line':data_config.CELL_LINES[0], 'condition':data_config.CONDITIONS[0]})
-                filtered_labels_c2, filtered_embeddings_c2, filtered_paths_c2 = filter_by_labels(marker_labels, marker_embeddings, marker_paths, {'cell_line':data_config.CELL_LINES[0], 'condition':data_config.CONDITIONS[1]})
+
+                mutual_param = getattr(data_config, mutual_attr.upper())[0]
+                compare_param_c1 = getattr(data_config,compare_by_attr.upper())[0]
+                compare_param_c2 = getattr(data_config,compare_by_attr.upper())[1]
+
+                filtered_labels_c1, filtered_embeddings_c1, filtered_paths_c1  = filter_by_labels(marker_labels, marker_embeddings, marker_paths, {mutual_attr.lower():mutual_param, compare_by_attr.lower():compare_param_c1})
+                filtered_labels_c2, filtered_embeddings_c2, filtered_paths_c2 = filter_by_labels(marker_labels, marker_embeddings, marker_paths, {mutual_attr.lower():mutual_param, compare_by_attr.lower():compare_param_c2})
                 
                 #convert to nparraay
                 filtered_embeddings_c1 = np.array(filtered_embeddings_c1)
@@ -139,15 +144,15 @@ def extract_subset(marker_labels, marker_embeddings, marker_paths, metric, num_p
                 # Get indices for condition 1 and 2 samples
                 c1_indices = np.array(list(set([i for (_, (i, j)) in labeled_pairs])))
                 c2_indices = np.array(list(set([j for (_, (i, j)) in labeled_pairs])))
-                logging.info(f"Selected {len(c1_indices)} {data_config.CONDITIONS[0]} samples and {len(c2_indices)} {data_config.CONDITIONS[1]} samples.")
+                logging.info(f"Selected {len(c1_indices)} {compare_param_c1} samples and {len(c2_indices)} {compare_param_c2} samples.")
 
                 # Save distances
                 distances_df = pd.DataFrame()
                 distances_df["pair_type"] = [label for (label, (i, j)) in labeled_pairs]
                 distances_df[f"{metric}_distance"] = [distances[i, j] for (label, (i, j)) in labeled_pairs]
-                distances_df[f"path_{data_config.CONDITIONS[0]}"] = [filtered_paths_c1.iloc[i]["Path"] for (label, (i, j)) in labeled_pairs]
-                distances_df[f"path_{data_config.CONDITIONS[1]}"] = [filtered_paths_c2.iloc[j]["Path"] for (label, (i, j)) in labeled_pairs]
-                distances_df.to_csv(os.path.join(output_dir, "distances.csv"), index=False)
+                distances_df[f"path_{compare_param_c1}"] = [filtered_paths_c1.iloc[i]["Path"] for (label, (i, j)) in labeled_pairs]
+                distances_df[f"path_{compare_param_c2}"] = [filtered_paths_c2.iloc[j]["Path"] for (label, (i, j)) in labeled_pairs]
+                distances_df.to_csv(os.path.join(output_dir, f"{metric}_distances.csv"), index=False)
 
                 # extract embeding,labels and paths values
                 c1_embeddings = filtered_embeddings_c1[c1_indices]
@@ -170,14 +175,14 @@ def extract_subset(marker_labels, marker_embeddings, marker_paths, metric, num_p
                 visualize_pairs(distances, flattened_distances, min_pairs, max_pairs, middle_pairs, metric, output_dir = output_dir)    
 
 
-def main(input_folder_path:str, output_folder_path:str, config_path_data:str, metric:str, num_pairs:int):
+def main(emb_dir:str,  config_path_data:str, metric:str, num_pairs:int, mutual_attr:str, compare_by_attr:str):
+
+    dataset_name = os.path.basename(config_path_data)
+    input_folder_path = os.path.join(emb_dir, dataset_name, "embeddings")
+    output_folder_path = os.path.join(emb_dir, dataset_name, "pairs")
 
     data_config:DatasetConfig = load_config_file(config_path_data, "data")
     data_config.OUTPUTS_FOLDER = output_folder_path
-
-    home_dir = os.getenv("HOME")
-    emb_out_dir = "NOVA_rotation/embeddings/embedding_output"
-
 
     if data_config.SPLIT_DATA:
         data_set_types = ['trainset','valset','testset']
@@ -200,15 +205,15 @@ def main(input_folder_path:str, output_folder_path:str, config_path_data:str, me
             batch_paths = load_npy_to_df(temp_input_folder_path, f"{set_type}_paths.npy", columns=['Path'])
             batch_embeddings = load_npy_to_df(temp_input_folder_path, f"{set_type}.npy")
 
-            batch_labels[['marker', 'cell_line', 'condition', 'batch', 'replicate']] = batch_labels['full_label'].str.split('_', expand=True)
-            grouped = batch_labels.groupby(['marker', 'cell_line', 'condition', 'batch'])
+            batch_labels[['markers', 'cell_lines', 'conditions', 'batch', 'replicate']] = batch_labels['full_label'].str.split('_', expand=True)
+            grouped = batch_labels.groupby(['markers', 'cell_lines', 'conditions', 'batch'])
             logging.info(f"\nlabels groups for {set_type}:")
             logging.info(grouped.size())
 
-            marker_names = batch_labels['marker'].unique()
+            marker_names = batch_labels['markers'].unique()
             for marker in marker_names:
                 # filter by marker
-                marker_labels, marker_embeddings, marker_paths = filter_by_labels(batch_labels, batch_embeddings, batch_paths, {"marker": marker})
+                marker_labels, marker_embeddings, marker_paths = filter_by_labels(batch_labels, batch_embeddings, batch_paths, {"markers": marker})
                 if marker_labels.empty:
                     logging.info(f"Error: No samples found for marker {marker}. continues.")
                     continue
@@ -217,26 +222,33 @@ def main(input_folder_path:str, output_folder_path:str, config_path_data:str, me
                 os.makedirs(temp_output_dir, exist_ok=True)
 
                 # run extraction of subset logic
-                extract_subset(marker_labels, marker_embeddings, marker_paths, metric, num_pairs, set_type, data_config, temp_output_dir)
+                extract_subset(marker_labels, marker_embeddings, marker_paths, metric, num_pairs, set_type, data_config, temp_output_dir, mutual_attr= mutual_attr, compare_by_attr =compare_by_attr)
                 
                             
 if __name__ == "__main__":
     try:
-        if len(sys.argv) < 4:
-            raise ValueError("Invalid arguments. Must supply input folder path, outputs folder path, data config.")
-        input_folder_path = sys.argv[1]
-        outputs_folder_path = sys.argv[2]
-        config_path_data = sys.argv[3]
-        if  len(sys.argv) >= 5:
-            metric = sys.argv[4]
+        if len(sys.argv) < 3:
+            raise ValueError("Invalid arguments. Must supply emb_dir and data config.")
+        emb_dir = sys.argv[1]
+        config_path_data = sys.argv[2]
+        if  len(sys.argv) >= 4:
+            metric = sys.argv[3]
         else:
             metric = "euclidean"
-        if  len(sys.argv) >= 6:
-            num_pairs = int(sys.argv[5])
+        if  len(sys.argv) >= 5:
+            num_pairs = int(sys.argv[4])
         else:
             num_pairs = 25
+        if  len(sys.argv) >= 6:
+            mutual_attr = sys.argv[5]
+        else:
+            mutual_attr = "cell_lines"
+        if len(sys.argv) >= 7:
+            compare_by_attr = sys.argv[6]
+        else:
+            compare_by_attr = "conditions"
 
-        main(input_folder_path, outputs_folder_path, config_path_data,  metric, num_pairs)
+        main(emb_dir, config_path_data,  metric, num_pairs, mutual_attr, compare_by_attr)
         
     except Exception as e:
         print(e)
