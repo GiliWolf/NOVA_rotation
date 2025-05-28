@@ -36,10 +36,10 @@ class InitialAttnMapPlotConfig(PlotAttnMapConfig):
 
         self.SHOW_PLOT:bool = False
 
-        self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/EmbeddingsdNLSB4DatasetConfig/pairs/deltaNLS/batch4/TDP43B"
+        self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/EmbeddingsB9DatasetConfig_Phalloidin/pairs/euclidean/neurons/batch9/Phalloidin"
 
         # attention method 
-        self.ATTN_METHOD:str = "rollout" #["rollout","all_layers"]
+        self.ATTN_METHOD:str = "all_layers" #["rollout","all_layers"]
 
         self.REDUCE_HEAD_FUNC:str = "mean"
 

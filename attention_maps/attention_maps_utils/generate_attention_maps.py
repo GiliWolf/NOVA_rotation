@@ -62,11 +62,12 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     run_name = os.path.basename(config_path_data)
     outputs_folder_path = os.path.join(home_dir, "attention_maps/attention_maps_output", run_name)
 
-    # filter by path names 
-    samples_indices = __extract_indices_to_plot(keep_samples_dir=config_plot.SAMPLES_PATH, paths = paths, data_config = config_data)
-    attn_maps = __extract_samples_to_plot(attn_maps, samples_indices, data_config = config_data)
-    labels = __extract_samples_to_plot(labels, samples_indices, data_config = config_data)
-    paths = __extract_samples_to_plot(paths, samples_indices, data_config = config_data)
+    if config_plot.SAMPLES_PATH is not None:
+        # filter by path names 
+        samples_indices = __extract_indices_to_plot(keep_samples_dir=config_plot.SAMPLES_PATH, paths = paths, data_config = config_data)
+        attn_maps = __extract_samples_to_plot(attn_maps, samples_indices, data_config = config_data)
+        labels = __extract_samples_to_plot(labels, samples_indices, data_config = config_data)
+        paths = __extract_samples_to_plot(paths, samples_indices, data_config = config_data)
 
     # save the raw attn_map (AFTER FILTERING)
     save_attn_maps(attn_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "raw"))
