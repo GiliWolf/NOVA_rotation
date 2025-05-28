@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 
 
-class InitialAttnMapPlotConfig(PlotAttnMapConfig):
+class BaseAttnMapPlotConfig(PlotAttnMapConfig):
     def __init__(self):
         super().__init__()
 
@@ -36,7 +36,7 @@ class InitialAttnMapPlotConfig(PlotAttnMapConfig):
 
         self.SHOW_PLOT:bool = False
 
-        self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/EmbeddingsB9DatasetConfig_Phalloidin/pairs/euclidean/neurons/batch9/Phalloidin"
+        self.SAMPLES_PATH:bool = None
 
         # attention method 
         self.ATTN_METHOD:str = "all_layers" #["rollout","all_layers"]
@@ -52,3 +52,19 @@ class InitialAttnMapPlotConfig(PlotAttnMapConfig):
         self.PLOT_CORR_SEPERATE_MARKERS:bool = True
 
         self.PLOT_CORR_ALL_MARKERS:bool = True
+
+class EmbeddingsB9DatasetConfig(BaseAttnMapPlotConfig):
+    def __init__(self):
+        
+        super().__init__()
+
+        self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/EmbeddingsB9DatasetConfig/pairs/euclidean/neurons/batch9/Phalloidin"
+        
+
+class EmbeddingsB9DatasetConfig_Phalloidin(BaseAttnMapPlotConfig):
+    def __init__(self):
+        
+        super().__init__()
+
+        self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/EmbeddingsB9DatasetConfig_Phalloidin/pairs/euclidean/neurons/batch9/Phalloidin"
+        

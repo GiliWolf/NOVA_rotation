@@ -103,7 +103,7 @@ def visualize_pairs(distances, flattened_distances, min_pairs, max_pairs, middle
         plt.show()
 
 
-def extract_subset(marker_labels:pd.DataFrame, marker_embeddings:pd.DataFrame, marker_paths:pd.DataFrame, metric:str, num_pairs:int, set_type:str, data_config:DatasetConfig, output_dir:str, mutual_attr:str = "cell_lines", compare_by_attr:str = "condition"):
+def extract_subset(marker_labels:pd.DataFrame, marker_embeddings:pd.DataFrame, marker_paths:pd.DataFrame, metric:str, num_pairs:int, set_type:str, data_config:DatasetConfig, output_dir:str, mutual_attr:str = "cell_lines", compare_by_attr:str = "condition", compare_by_attr_idx:list = [0,1]):
                 """
                 extract subset of samples from marker_embeddings by -
                     1) computing all pair-wise distances
@@ -113,8 +113,8 @@ def extract_subset(marker_labels:pd.DataFrame, marker_embeddings:pd.DataFrame, m
                 """
 
                 mutual_param = getattr(data_config, mutual_attr.upper())[0]
-                compare_param_c1 = getattr(data_config,compare_by_attr.upper())[0]
-                compare_param_c2 = getattr(data_config,compare_by_attr.upper())[1]
+                compare_param_c1 = getattr(data_config,compare_by_attr.upper())[compare_by_attr_idx[0]]
+                compare_param_c2 = getattr(data_config,compare_by_attr.upper())[compare_by_attr_idx[1]]
 
                 filtered_labels_c1, filtered_embeddings_c1, filtered_paths_c1  = filter_by_labels(marker_labels, marker_embeddings, marker_paths, {mutual_attr.lower():mutual_param, compare_by_attr.lower():compare_param_c1})
                 filtered_labels_c2, filtered_embeddings_c2, filtered_paths_c2 = filter_by_labels(marker_labels, marker_embeddings, marker_paths, {mutual_attr.lower():mutual_param, compare_by_attr.lower():compare_param_c2})
@@ -175,14 +175,21 @@ def extract_subset(marker_labels:pd.DataFrame, marker_embeddings:pd.DataFrame, m
                 visualize_pairs(distances, flattened_distances, min_pairs, max_pairs, middle_pairs, metric, output_dir = output_dir)    
 
 
-def main(emb_dir:str,  config_path_data:str, metric:str, num_pairs:int, mutual_attr:str, compare_by_attr:str):
+def main(emb_dir:str,  config_path_data:str, config_path_subset:str):
 
     dataset_name = os.path.basename(config_path_data)
     input_folder_path = os.path.join(emb_dir, dataset_name, "embeddings")
     output_folder_path = os.path.join(emb_dir, dataset_name, "pairs")
 
-    data_config:DatasetConfig = load_config_file(config_path_data, "data")
+    # init subset config with a dataset config
+    data_config:SubsetConfig = load_config_file(config_path_subset, "data", args = load_config_file(config_path_data, "data"))
     data_config.OUTPUTS_FOLDER = output_folder_path
+
+    metric:str = data_config.METRIC
+    num_pairs:int = data_config. NUM_PAIRS 
+    mutual_attr:str = data_config.MUTUAL_ATTR
+    compare_by_attr:str = data_config.COMPARE_BY_ATTR
+    compare_by_attr_idx:list = data_config.COMPARE_BY_ATTR_IDX
 
     if data_config.SPLIT_DATA:
         data_set_types = ['trainset','valset','testset']
@@ -222,33 +229,18 @@ def main(emb_dir:str,  config_path_data:str, metric:str, num_pairs:int, mutual_a
                 os.makedirs(temp_output_dir, exist_ok=True)
 
                 # run extraction of subset logic
-                extract_subset(marker_labels, marker_embeddings, marker_paths, metric, num_pairs, set_type, data_config, temp_output_dir, mutual_attr= mutual_attr, compare_by_attr =compare_by_attr)
+                extract_subset(marker_labels, marker_embeddings, marker_paths, metric, num_pairs, set_type, data_config, temp_output_dir, mutual_attr= mutual_attr, compare_by_attr =compare_by_attr, compare_by_attr_idx = compare_by_attr_idx)
                 
                             
 if __name__ == "__main__":
     try:
-        if len(sys.argv) < 3:
+        if len(sys.argv) < 4:
             raise ValueError("Invalid arguments. Must supply emb_dir and data config.")
         emb_dir = sys.argv[1]
         config_path_data = sys.argv[2]
-        if  len(sys.argv) >= 4:
-            metric = sys.argv[3]
-        else:
-            metric = "euclidean"
-        if  len(sys.argv) >= 5:
-            num_pairs = int(sys.argv[4])
-        else:
-            num_pairs = 25
-        if  len(sys.argv) >= 6:
-            mutual_attr = sys.argv[5]
-        else:
-            mutual_attr = "cell_lines"
-        if len(sys.argv) >= 7:
-            compare_by_attr = sys.argv[6]
-        else:
-            compare_by_attr = "conditions"
+        config_path_subset = sys.argv[3]
 
-        main(emb_dir, config_path_data,  metric, num_pairs, mutual_attr, compare_by_attr)
+        main(emb_dir, config_path_data, config_path_subset)
         
     except Exception as e:
         print(e)
