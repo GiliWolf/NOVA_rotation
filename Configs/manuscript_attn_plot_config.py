@@ -6,7 +6,7 @@ sys.path.insert(1, os.getenv("NOVA_HOME"))
 from NOVA_rotation.Configs.attn_map_config import PlotAttnMapConfig
 import cv2
 import numpy as np
-
+from PIL import Image
 
 class BaseAttnMapPlotConfig(PlotAttnMapConfig):
     def __init__(self):
@@ -39,7 +39,9 @@ class BaseAttnMapPlotConfig(PlotAttnMapConfig):
         self.SAMPLES_PATH:bool = None
 
         # attention method 
-        self.ATTN_METHOD:str = "all_layers" #["rollout","all_layers"]
+        self.ATTN_METHOD:str = "rollout" #["rollout","all_layers"]
+
+        self.RESAMPLE_METHOD:int = Image.BICUBIC 
 
         self.REDUCE_HEAD_FUNC:str = "mean"
 
@@ -67,4 +69,19 @@ class EmbeddingsB9DatasetConfig_Phalloidin(BaseAttnMapPlotConfig):
         super().__init__()
 
         self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/EmbeddingsB9DatasetConfig_Phalloidin/pairs/euclidean/neurons/batch9/Phalloidin"
+
+
+class EmbeddingsB9DatasetConfig_FUS(BaseAttnMapPlotConfig):
+    def __init__(self):
+        
+        super().__init__()
+
+        self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/EmbeddingsB9DatasetConfig_FUS/pairs/euclidean/neurons/batch9/FUS"
+
+class EmbeddingsdNLSB4DatasetConfig(BaseAttnMapPlotConfig):
+    def __init__(self):
+        
+        super().__init__()
+
+        self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/EmbeddingsdNLSB4DatasetConfig/pairs/euclidean/deltaNLS/batch4/TDP43B"
         

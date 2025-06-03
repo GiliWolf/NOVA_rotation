@@ -1,11 +1,14 @@
 import os
 import sys
 sys.path.insert(0, os.getenv("HOME"))
+sys.path.insert(1, os.getenv("NOVA_HOME"))
 from NOVA.src.common.utils import load_config_file
 from NOVA_rotation.Configs.subset_config import SubsetConfig
 from fpdf import FPDF
-from NOVA_rotation.load_files.load_data_from_npy import load_npy_to_df, load_npy_to_nparray, load_paths_from_npy
-
+from NOVA_rotation.load_files.load_data_from_npy import load_npy_to_df, load_npy_to_nparray, load_paths_from_npy, parse_paths
+import pandas as pd
+from src.datasets.label_utils import get_markers_from_labels
+from PIL import Image
 """
 
 create a PDF that summarizes:
@@ -33,6 +36,22 @@ create a PDF that summarizes:
 
 """
 
+CHANNELS_DICT = {
+    1: "Only Marker",
+    2: "Nucleus + Marker",
+    3: "Nuckeus + Multiple Markers"
+}
+
+resample_methods = {
+    Image.NEAREST: 'NEAREST',
+    Image.BOX: 'BOX',
+    Image.BILINEAR: 'BILINEAR',
+    Image.HAMMING: 'HAMMING',
+    Image.BICUBIC: 'BICUBIC',
+    Image.LANCZOS: 'LANCZOS'
+}
+
+
 def get_title(data_config):
     mutual_attr:str = data_config.MUTUAL_ATTR
     compare_by_attr:str = data_config.COMPARE_BY_ATTR
@@ -46,7 +65,7 @@ def get_title(data_config):
 
     return title
 
-def subet_pdf(input_folder_path, umap_folder_path, data_config, dataset_name, title):
+def subet_pdf(input_folder_path, umap_folder_path, data_config, dataset_name, title, output_folder_path = "."):
     metric:str = data_config.METRIC
     num_pairs:int = data_config. NUM_PAIRS 
 
@@ -78,14 +97,15 @@ def subet_pdf(input_folder_path, umap_folder_path, data_config, dataset_name, ti
 
                 pdf.ln(10)  # Add space
 
+                subset_size = len(paths["Path"].unique())
                 # Metadata
-                pdf.set_font("Arial", size=12)
+                pdf.set_font("Arial", size=12,  style='B')
                 metadata = (
-                    f"-> Input channels: marker + nucleus\n"
-                    f"-> Distance metric: {metric}\n"
-                    f"-> N_pairs: {num_pairs}\n"
-                    f"-> Marker: {marker}\n"
-                    f"-> Subset Size: {paths.shape[0]}"
+                    f"-> Marker:    {marker}\n"
+                    f"-> Input channels:    {CHANNELS_DICT[data_config.NUM_CHANNELS]}\n"
+                    f"-> Distance metric:   {metric}\n"
+                    f"-> N_pairs:   {num_pairs}\n"
+                    f"-> Subset Size:   {subset_size}"
                 )
                 pdf.multi_cell(0, 10, txt=metadata)
 
@@ -95,8 +115,8 @@ def subet_pdf(input_folder_path, umap_folder_path, data_config, dataset_name, ti
                 pdf.set_font("Arial", style='B', size=12)
                 pdf.cell(200, 10, txt="Distance Distribution", ln=True)
                 dist_fig_path = os.path.join(temp_input_folder_path, f"{metric}_distance_distribution.png")
-                pdf.image(dist_fig_path, x=10, y=pdf.get_y(), w=150)
-                pdf.ln(100)  # Adjust if needed based on image height
+                pdf.image(dist_fig_path, x=10, y=pdf.get_y(), w=140, h=70)
+                pdf.ln(80)  # Adjust if needed based on image height
 
                 # UMAP figures
                 pdf.set_font("Arial", style='B', size=12)
@@ -106,29 +126,37 @@ def subet_pdf(input_folder_path, umap_folder_path, data_config, dataset_name, ti
                 all_samples_path = os.path.join(umap_folder_path, dataset_name, "all_samples", f"{marker}.png")
                 subset_path = os.path.join(umap_folder_path, dataset_name, "subset", f"{marker}.png")
 
-                img_width = 90
-                img_height = 60
-                x_margin = 10
-                y_position = pdf.get_y()
-
-                # Captions
-                pdf.set_font("Arial", size=10)
-                pdf.text(x_margin, y_position - 2, "All Samples")
-                pdf.text(x_margin + img_width + 10, y_position - 2, "Subset")
-
-                # Images side-by-side
-                pdf.image(all_samples_path, x=x_margin, y=y_position, w=img_width, h=img_height)
-                pdf.image(subset_path, x=x_margin + img_width + 10, y=y_position, w=img_width, h=img_height)
+                set_adjacent_images(pdf, all_samples_path, subset_path, "All Samples", "Subset")
 
                 # Save
-                pdf.output(f"{dataset_name}_subset_summary.pdf")
+                pdf.output(os.path.join(output_folder_path, f"{dataset_name}_subset_summary.pdf"))
 
-def attn_map_pdf(input_folder_path, dataset_name,data_config, plot_config, title):
+def set_adjacent_images(pdf, path1, path2, title1, title2, img_width = 95, img_height = 70, x_margin = 10,  buffer=10):
+        y_position = pdf.get_y()
+
+        # If the next content exceeds page height, add new page
+        if y_position + img_height + buffer > 287:
+            pdf.add_page()
+            y_position = pdf.get_y()
+
+        # Captions
+        pdf.set_font("Arial", size=10)
+        pdf.text(x_margin + (img_width//2) - 5, y_position, title1)
+        pdf.text(x_margin + img_width + (img_width//2) - 5, y_position, title2)
+
+        # Images side-by-side
+        pdf.image(path1, x=x_margin, y=y_position+2, w=img_width, h=img_height)
+        pdf.image(path2, x=x_margin + img_width + 5, y=y_position+2, w=img_width, h=img_height)
+
+
+
+def attn_map_pdf(input_folder_path, subset_folder_path, dataset_name,data_config, plot_config, title, num_examples = 1, output_folder_path = "."):
 
     ATTN_METHOD:str = plot_config.ATTN_METHOD
     REDUCE_HEAD_FUNC:str = plot_config.REDUCE_HEAD_FUNC
     MIN_ATTN_THRESHOLD:float = plot_config.MIN_ATTN_THRESHOLD
     CORR_METHOD:str = plot_config.CORR_METHOD
+    RESAMPLE_METHOD:int = resample_methods[plot_config.RESAMPLE_METHOD]
 
     if data_config.SPLIT_DATA:
         data_set_types = ['trainset','valset','testset']
@@ -147,7 +175,8 @@ def attn_map_pdf(input_folder_path, dataset_name,data_config, plot_config, title
         for batch in batches_names:
             for marker in data_config.MARKERS:
                 fig_input_folder_path =os.path.join(input_folder_path, dataset_name, "figures", ATTN_METHOD,  data_config.EXPERIMENT_TYPE, batch, set_type)
-                
+                temp_subset_folder_path = os.path.join(subset_folder_path, dataset_name, "pairs", data_config.METRIC, data_config.EXPERIMENT_TYPE, batch, marker)
+
                 pdf = FPDF()
                 pdf.add_page()
 
@@ -158,38 +187,109 @@ def attn_map_pdf(input_folder_path, dataset_name,data_config, plot_config, title
                 pdf.ln(10)  # Add space
 
                 # Metadata
-                pdf.set_font("Arial", size=12)
+                pdf.set_font("Arial", size=12, style='B')
                 metadata = (
-                    f"-> Input channels: marker + nucleus\n"
-                    f"-> ATTN_METHOD: {ATTN_METHOD}\n"
-                    f"-> REDUCE_HEAD_FUNC: {REDUCE_HEAD_FUNC}\n"
-                    f"-> MIN_ATTN_THRESHOLD: {MIN_ATTN_THRESHOLD}\n"
-                    f"-> CORR_METHOD Size: {CORR_METHOD}"
+                    f"-> Marker:    {marker}\n"
+                    f"-> Input channels:    {CHANNELS_DICT[data_config.NUM_CHANNELS]}\n"
+                    f"-> Attention Method:  {ATTN_METHOD}\n"
+                    f"-> Head reduction Function:   {REDUCE_HEAD_FUNC}\n"
+                    f"-> Minimum Attention Threshold:   {MIN_ATTN_THRESHOLD}\n"
+                    f"-> Resampling Method: {RESAMPLE_METHOD}"
+                    f"-> Correlation Method:    {CORR_METHOD}"
                 )
                 pdf.multi_cell(0, 10, txt=metadata)
 
-                # Save
-                pdf.output(f"{dataset_name}_attn_summary.pdf")
+                # correlation fig
+                pdf.set_font("Arial", style='B', size=12)
+                pdf.cell(200, 10, txt="Correlation Plot", ln=True)
+                dist_fig_path = os.path.join(fig_input_folder_path, f"{CORR_METHOD}_correlation.png")
+                pdf.image(dist_fig_path, x=10, y=pdf.get_y(), w=120, h=140)
+                pdf.ln(150)  # Adjust if needed based on image height
 
+                # Attn maps examples
+                distance_csv_path = os.path.join(temp_subset_folder_path, f"{data_config.METRIC}_distances.csv")
+                dist_df = pd.read_csv(distance_csv_path)
+                pdf.ln(10)
+                pdf.set_font("Arial", style='B', size=14)
+                pdf.cell(200, 10, txt="Attention Maps Examples", ln=True, align='C')
+                for pair_type in ["min", "middle", "max"]:
+                    pdf.set_font("Arial", size=12, style='B')
+                    pdf.cell(200, 10, txt=f"--------------------------------------------------------------{pair_type}--------------------------------------------------------------", ln=True)
+
+                    pair_list = extract_pairs(pair_type, dist_df, num_examples)
+                    for dist, path_1, path_2, c1, c2 in pair_list:
+                        parsed_paths = parse_paths([path_1, path_2])
+                        file_name_1 = parsed_paths.iloc[0].File_Name
+                        tile_1 = parsed_paths.iloc[0].Tile
+                        file_name_2 = parsed_paths.iloc[1].File_Name
+                        tile_2 = parsed_paths.iloc[1].Tile
+
+                        set_adjacent_images(pdf,
+                                            os.path.join(fig_input_folder_path, file_name_1, f"Tile{tile_1}.png"), 
+                                            os.path.join(fig_input_folder_path, file_name_2, f"Tile{tile_2}.png"),
+                                            title1= c1,
+                                            title2= c2)
+                        pdf.ln(80)
+
+                # Save
+                pdf.output(os.path.join(output_folder_path, f"{dataset_name}_attn_summary_{num_examples}.pdf"))
+
+def extract_pairs(pair_type:str, dist_df:pd.DataFrame, num_examples =1):
+    prev_path1 = set()
+    prev_path2 = set()
+    pair_list = []
+
+    filtered_df = dist_df[dist_df["pair_type"] == pair_type]
+    for index in range(len(filtered_df)):
+        if len(pair_list) >= num_examples:
+            break
+
+        pair = filtered_df.iloc[index]
+
+        # extract distance value
+        dist = pair.filter(like="_distance").values[0]
+
+        # # Extract values for the first and second "path_" columns
+        path_cols = [col for col in pair.index if col.startswith("path_")]
+        path1 = pair[path_cols[0]]
+        path2 = pair[path_cols[1]]
+
+        if path1 in prev_path1 or path2  in prev_path2:
+            continue
+
+        c1 = str(path_cols[0]).split("path_")[1]
+        c2 = str(path_cols[1]).split("path_")[1]
+
+        pair_list.append((dist, path1, path2, c1, c2))
+
+        prev_path1.add(path1)
+        prev_path2.add(path2)
     
+    return pair_list
 
 
 def main():
-    dataset_name = "EmbeddingsB9DatasetConfig"
+    dataset_name = "EmbeddingsdNLSB4DatasetConfig"
+
+    # path control
     emb_folder_path = "./NOVA_rotation/embeddings/embedding_output"
     umap_folder_path = "./NOVA_rotation/UMAP/UMAP_output/from_embeddings"
     attn_folder_path  = "./NOVA_rotation/attention_maps/attention_maps_output"
+    output_folder_path = os.path.join("./NOVA_rotation/analysis/output", dataset_name)
+    os.makedirs(output_folder_path, exist_ok=True)
 
+    # load configs
     config_path_data = os.path.join("./NOVA_rotation/Configs/reps_dataset_config", dataset_name)
     config_path_subset = os.path.join("./NOVA_rotation/Configs/manuscript_subset_config", dataset_name)
     config_path_plot = os.path.join("./NOVA_rotation/Configs/manuscript_attn_plot_config", dataset_name)
     data_config:SubsetConfig = load_config_file(config_path_subset, "data", args = load_config_file(config_path_data, "data"))
     plot_config:PlotAttnMapConfig = load_config_file(config_path_plot, "plot")
 
+    # run
     title = get_title(data_config)
-    subet_pdf(emb_folder_path, umap_folder_path, data_config, dataset_name, title)
+    subet_pdf(emb_folder_path, umap_folder_path, data_config, dataset_name, title, output_folder_path)
     print("created subet_pdf.")
-    attn_map_pdf(attn_folder_path, dataset_name,data_config, plot_config, title)
+    attn_map_pdf(attn_folder_path, emb_folder_path, dataset_name, data_config, plot_config, title, num_examples = 3, output_folder_path = output_folder_path)
     print("created attn_map_pdf.")
 
 
