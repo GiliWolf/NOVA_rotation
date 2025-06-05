@@ -10,6 +10,27 @@ from typing import List, Dict, Any
 import numpy as np
 from scipy.spatial.distance import cdist
 
+class AttributionHelperClass():
+    def __init__(self, config):
+        self.config = config
+
+
+    def get_base_line(inputs):
+        base_line_func = globals()[f"_{config.BASE_LINE_METHOD}_base_line"]
+        return base_line_func(inputs)
+
+    def _forward_func(self, inputs: Tensor, helper_emb: Tensor) -> np.ndarray[torch.Tensor]:
+        forward_func = globals()[f"_base_line_{config.FF_METHOD}"]
+        raise NotImplementedError
+    
+    def _initiate_attr_instance():
+        pass
+
+    def attribute():
+        pass
+    
+    def __call__(self, inputs: np.ndarray[torch.Tensor], helper_emb: np.ndarray[torch.Tensor]) -> torch.Tensor:
+        return self._forward_func(inputs, helper_emb)
 
 class BaseForwardFunc():
     def __init__(self, ff_config):
@@ -105,12 +126,59 @@ class KNNForwardFunc(PrototypeForwardFunc):
 
         return predicted_labels
 
+def _distance_forward_func(inputs: torch.Tensor, prototype:torch.Tensor, config) -> torch.Tensor:
+        dist_method = config.DIST_METHOD
 
-def _base_line_uniform(inputs, value):
+        if dist_method == "cosine":
+            return F.cosine_similarity(inputs, prototype.unsqueeze(0), dim=1)
+        elif dist_method == "euclidean":
+            return -torch.norm(inputs - prototype, dim=1)  # more similar → higher
+        else:
+            raise ValueError(f"Unsupported distance method: {dist_method}")
+
+def _dot_product_forward_func(inputs: torch.Tensor, prototype:torch.Tensor, config) -> torch.Tensor:
+
+        return torch.matmul(inputs, prototype)
+
+
+def _blackout_base_line(inputs: torch.Tensor) -> torch.Tensor:
+    """
+    Creates a uniform baseline tensor where every element is set to `value`.
+    Args:
+        inputs: Input tensor of shape (B, D)
+    Returns:
+        Tensor of same shape as inputs filled with `value`
+    """
+    return torch.full_like(inputs, fill_value=0.0)
+
+def _gaussian_base_line_distinct(inputs: torch.Tensor, sigma: float = 0.1) -> torch.Tensor:
+    """
+    Gaussian baseline from Smilkov et al. (2017).
+    Adds Gaussian noise centered on the input with standard deviation `sigma`.
+    
+    Args:
+        inputs: Input tensor of shape (B, D)
+        sigma: Standard deviation for the Gaussian noise
+    Returns:
+        Tensor with Gaussian noise added to each input
+    """
+    noise = torch.randn_like(inputs) * sigma
+    return inputs + noise
+
+def _blurred_base_line(inputs):
+    #https://hackernoon.com/how-to-implement-gaussian-blur-zw28312m
     pass
 
-def _base_line_blurred(inputs):
-    pass
-
-def _base_line_random(inputs):
-    pass
+def _uniform_base_line(inputs: torch.Tensor, low: float = 0.0, high: float = 1.0) -> torch.Tensor:
+    """
+    Uniform baseline from Sturmfels et al. (2020).
+    Generates a tensor of same shape as inputs using values drawn from U(low, high).
+    
+    Args:
+        inputs: Tensor of shape (B, D)
+        low: Lower bound of uniform distribution
+        high: Upper bound of uniform distribution
+    Returns:
+        Random tensor of same shape from uniform distribution
+    """
+    return torch.empty_like(inputs).uniform_(low, high)
