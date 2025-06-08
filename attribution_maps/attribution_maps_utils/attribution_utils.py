@@ -143,15 +143,15 @@ def _dot_product_forward_func(inputs: torch.Tensor, prototype:torch.Tensor, conf
 
 def _blackout_base_line(inputs: torch.Tensor) -> torch.Tensor:
     """
-    Creates a uniform baseline tensor where every element is set to `value`.
+    Creates a uniform baseline tensor where every element is set to zero.
     Args:
         inputs: Input tensor of shape (B, D)
     Returns:
-        Tensor of same shape as inputs filled with `value`
+        Tensor of same shape as inputs filled with 0.
     """
     return torch.full_like(inputs, fill_value=0.0)
 
-def _gaussian_base_line_distinct(inputs: torch.Tensor, sigma: float = 0.1) -> torch.Tensor:
+def _gaussian_base_line(inputs: torch.Tensor, sigma: float = 0.1) -> torch.Tensor:
     """
     Gaussian baseline from Smilkov et al. (2017).
     Adds Gaussian noise centered on the input with standard deviation `sigma`.
@@ -160,10 +160,10 @@ def _gaussian_base_line_distinct(inputs: torch.Tensor, sigma: float = 0.1) -> to
         inputs: Input tensor of shape (B, D)
         sigma: Standard deviation for the Gaussian noise
     Returns:
-        Tensor with Gaussian noise added to each input
+        Tensor with Gaussian noise added to each input (clamp for making sute its range is between [0,1])
     """
     noise = torch.randn_like(inputs) * sigma
-    return inputs + noise
+    return torch.clamp(inputs + noise, 0.0, 1.0)
 
 def _blurred_base_line(inputs):
     #https://hackernoon.com/how-to-implement-gaussian-blur-zw28312m
@@ -182,3 +182,16 @@ def _uniform_base_line(inputs: torch.Tensor, low: float = 0.0, high: float = 1.0
         Random tensor of same shape from uniform distribution
     """
     return torch.empty_like(inputs).uniform_(low, high)
+
+def _scaled_base_line(inputs: torch.Tensor, scale_value:float = 0.1) -> torch.Tensor:
+    """
+    Scaled version of the input
+    Generates a tensor of same shape as inputs using values drawn from U(low, high).
+    
+    Args:
+        inputs: Input tensor of shape (B, D)
+        scale_value: float value to scale the input with 
+    Returns:
+        Tensor of same shape as inputs where its values are multiplied with scale_value
+    """
+    return inputs * scale_value

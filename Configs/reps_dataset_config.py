@@ -15,6 +15,7 @@ class EmbeddingsB9DatasetConfig(EmbeddingsConfig):
         # The path to the root of the processed folder
         self.PROCESSED_FOLDER_ROOT:str = os.path.join(self.HOME_DATA_FOLDER, "images", "processed")
         
+        self.SHUFFLE:bool = False   
         #### from embedding config ####
         # The name for the experiment
         self.SETS:List[str] = ['testset']
@@ -59,6 +60,8 @@ class EmbeddingsB9DatasetConfig_Phalloidin(EmbeddingsConfig):
         
         # The path to the root of the processed folder
         self.PROCESSED_FOLDER_ROOT:str = os.path.join(self.HOME_DATA_FOLDER, "images", "processed")
+
+        self.SHUFFLE:bool = False   
         
         #### from embedding config ####
         # The name for the experiment
@@ -104,6 +107,8 @@ class EmbeddingsB9DatasetConfig_FUS(EmbeddingsConfig):
         
         # The path to the root of the processed folder
         self.PROCESSED_FOLDER_ROOT:str = os.path.join(self.HOME_DATA_FOLDER, "images", "processed")
+
+        self.SHUFFLE:bool = False   
         
         #### from embedding config ####
         # The name for the experiment
@@ -147,8 +152,11 @@ class EmbeddingsdNLSB4DatasetConfig(EmbeddingsConfig):
     def __init__(self):
         super().__init__()
 
+        self.SHUFFLE:bool = False   
+
         self.INPUT_FOLDERS = [os.path.join(self.PROCESSED_FOLDER_ROOT, "spd2", "SpinningDisk", "deltaNLS", f) for f in 
                         ["batch4"]]
+                        
         
         self.SPLIT_DATA = False
         self.EXPERIMENT_TYPE = 'deltaNLS'

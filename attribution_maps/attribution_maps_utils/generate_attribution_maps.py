@@ -46,15 +46,15 @@ def generate_attr_maps_with_model(outputs_folder_path:str, config_path_data:str,
     run_name = os.path.basename(config_path_data)
     outputs_folder_path = os.path.join(home_dir, "attribution_maps/attribution_maps_output", run_name)
 
-    # if config_attr.SAMPLES_PATH is not None:
-    #     # filter by path names 
-    #     samples_indices = __extract_indices_to_plot(keep_samples_dir=config_attr.SAMPLES_PATH, paths = paths, data_config = config_data)
-    #     attr_maps = __extract_samples_to_plot(attr_maps, samples_indices, data_config = config_data)
-    #     labels = __extract_samples_to_plot(labels, samples_indices, data_config = config_data)
-    #     paths = __extract_samples_to_plot(paths, samples_indices, data_config = config_data)
+    if config_attr.SAMPLES_PATH is not None:
+        # filter by path names 
+        samples_indices = __extract_indices_to_plot(keep_samples_dir=config_attr.SAMPLES_PATH, paths = paths, data_config = config_data)
+        attr_maps = __extract_samples_to_plot(attr_maps, samples_indices, data_config = config_data)
+        labels = __extract_samples_to_plot(labels, samples_indices, data_config = config_data)
+        paths = __extract_samples_to_plot(paths, samples_indices, data_config = config_data)
 
-    # # save the raw attn_map (AFTER FILTERING)
-    # save_attr_maps(attr_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "raw"))
+    # save the raw attn_map (AFTER FILTERING)
+    save_attr_maps(attr_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "raw"))
  
     # # process and plot attr_maps (AFTER FILTERING)
     # proccesed_attr_maps, corr_data = plot_attr_maps(attr_maps, labels, paths, config_data, config_attr, output_folder_path=os.path.join(outputs_folder_path, "figures", config_attr.ATTN_METHOD))
@@ -154,7 +154,7 @@ def save_attr_maps(attr_maps:List[np.ndarray[torch.Tensor]],
                 cur_attr_maps = globals()[f"__attn_map_{attn_method}"](cur_attr_maps, attn_layer_dim = 1)
 
             np.save(os.path.join(batch_save_path,f'{set_type}_labels.npy'), np.array(cur_labels[batch_indexes]))
-            np.save(os.path.join(batch_save_path,f'{set_type}_attn.npy'), cur_attr_maps[batch_indexes])
+            np.save(os.path.join(batch_save_path,f'{set_type}_attr.npy'), cur_attr_maps[batch_indexes])
             np.save(os.path.join(batch_save_path,f'{set_type}_paths.npy'), cur_paths[batch_indexes])
 
             logging.info(f'[save_attr_maps] Finished {set_type} set, saved in {batch_save_path}')
@@ -164,32 +164,30 @@ def save_attr_maps(attr_maps:List[np.ndarray[torch.Tensor]],
 def _group_embeddings_by_labels(embeddings:np.ndarray[torch.Tensor], labels:np.ndarray[str], paths:np.ndarray[str], config_data, attr_config):
     # extract only the relevent parts from the labels to be served as classes
     class_labels = map_labels(labels, attr_config, config_data, config_function_name='CLASS_LABELS_FUNC')
-
     unique_labels, classes = np.unique(class_labels, return_inverse=True)
     label_to_class = {label: i for i, label in enumerate(unique_labels)}
 
-    # Step 2: Initialize dictionary to hold grouped embeddings and paths
-    grouped_embeddings = defaultdict(lambda: {'embeddings': []})
+    # Initialize dictionary to hold grouped embeddings directly
+    grouped_embeddings = defaultdict(list)
 
-    # Step 3: Group by class label using index-based access
+    # Group embeddings by class
     for i in range(len(embeddings)):
-        emb = embeddings[i]
-        emb = torch.as_tensor(emb)
+        emb = torch.as_tensor(embeddings[i])
         cls_label = classes[i]
-        grouped_embeddings[cls_label]['embeddings'].append(emb)
+        grouped_embeddings[cls_label].append(emb)
 
-    # Step 4: Convert lists to tensors/arrays
+    # Stack embeddings for each group
     for cls_label in grouped_embeddings:
-        grouped_embeddings[cls_label]['embeddings'] = torch.stack(grouped_embeddings[cls_label]['embeddings'])
+        grouped_embeddings[cls_label] = torch.stack(grouped_embeddings[cls_label])
 
     return grouped_embeddings, label_to_class
 
 def _create_prototype(grouped_embeddings):
+    # create a prototype of the embeddings for each "class"
     prototypes = {
-        label: torch.mean(data['embeddings'], dim=0)  # shape: (D,)
-        for label, data in grouped_embeddings.items()
+        label: torch.mean(embeddings, dim=0)  # shape: (D,)
+        for label, embeddings in grouped_embeddings.items()
     }
-
     return prototypes
 
 def __generate_attr_maps_with_dataloader(dataset:DatasetNOVA, model:NOVAModel, config_data:DatasetConfig, config_attr:AttributionConfig, input_size:tuple, batch_size:int=700, 
@@ -198,6 +196,7 @@ def __generate_attr_maps_with_dataloader(dataset:DatasetNOVA, model:NOVAModel, c
     
     logging.info(f"[generate_attr_maps_with_dataloader] Data loaded: there are {len(dataset)} images.")
     
+    # extract all embedding to be used for the prototypes
     embeddings, labels, paths = model.infer(data_loader)
 
     # group by labels 
@@ -206,15 +205,13 @@ def __generate_attr_maps_with_dataloader(dataset:DatasetNOVA, model:NOVAModel, c
     # create prototypes 
     prototypes = _create_prototype(grouped_embeddings)
 
-
-    # get forward func
+    # get model
     vit_model = model.get_model()
+
+    # init forward func
     def forward_func(inputs, labels):
         # get embeddings
         emb = vit_model(inputs)
-
-        if emb.shape[0] > len(labels):
-            labels = np.tile(labels, config_attr.N_STEPS)
 
         # match prototype to labels
         matched_prototypes = torch.stack([
@@ -224,66 +221,149 @@ def __generate_attr_maps_with_dataloader(dataset:DatasetNOVA, model:NOVAModel, c
         return getattr(attr_utils, f"_{config_attr.FF_METHOD}_forward_func")(emb, matched_prototypes, config_attr)
 
 
-    # initiate attribution pbject
+    # initiate attribution object
     attr_object = getattr(captum.attr, config_attr.ATTR_METHOD)(forward_func)
+    kwargs = config_attr.get_kwargs() # get kwargs for the attribution object
+    if config_attr.USE_NOISE_TUNNEL: # use NoiseTunnel if specified
+        attr_object = captum.robust.NoiseTunnel(attr_object)
 
-    all_outputs:List[torch.Tensor] = []
-    all_labels:np.ndarray[str] = np.array([])
-    all_paths:np.ndarray[str] = np.array([])
+    # iteration process 
+    #all_outputs:List[torch.Tensor] = []
+    all_outputs = {}
+    all_labels = {}
+    all_paths = {}
     
     # Move model to cuda
     vit_model = vit_model.cuda()
     # Set model to eval mode
     vit_model.eval()
 
-    if not config_attr.DISTINCT_BASE_LINE:
-        shape = (config_data.NUM_CHANNELS, input_size[0], input_size[1])
-        base_line = getattr(attr_utils, f"_{config_attr.BASE_LINE_METHOD}_base_line")(torch.zeros(shape))
-        base_line = base_line.unsqueeze(0) 
+    #{uniform, blurred, gaussian, blackout}
+    base_line_methods = ['scaled', 'blackout'] #'uniform', 'gaussian', 'blackout'
 
-    
-    with torch.no_grad():
-        for it, res in enumerate(data_loader):
-            torch.cuda.empty_cache()
+    for blm in base_line_methods:
+        config_attr.BASE_LINE_METHOD = blm
 
-            logging.info(f"[Inference] Batch number: {it}/{len(data_loader)}")
-            X, y, path = res
-            X = X.cuda()
+        if not config_attr.DISTINCT_BASE_LINE:
+            shape = (config_data.NUM_CHANNELS, input_size[0], input_size[1]) # shape of the input image
+            base_line = getattr(attr_utils, f"_{config_attr.BASE_LINE_METHOD}_base_line")(torch.zeros(shape)) # init a base line using inpu shape
+            base_line = base_line.unsqueeze(0) # unsqueeze to be supported by captum
+
+        bl_outputs:List[torch.Tensor] = []
+        bl_labels:np.ndarray[str] = np.array([])
+        bl_paths:np.ndarray[str] = np.array([])
+        
+        with torch.no_grad():
+            for it, res in enumerate(data_loader):
+                torch.cuda.empty_cache()
+
+                logging.info(f"[Attribution] Batch number: {it}/{len(data_loader)}")
+                X, y, path = res
+                X = X.cuda()
+                    
+                # convert from indexesgeneral_base_line to the labels
+                labels = data_loader.dataset.id2label(y)
+
+                # get base line for each input seperatly if specified
+                if config_attr.DISTINCT_BASE_LINE:
+                    base_line =  getattr(attr_utils, f"_{config_attr.BASE_LINE_METHOD}_base_line")(X)
                 
-            # convert from indexesgeneral_base_line to the labels
-            labels = data_loader.dataset.id2label(y)
+                device = X.device  # get device of input tensor
+                base_line = base_line.to(device)  # move baseline to the same device
+                labels = map_labels(labels, config_attr, config_data, config_function_name='CLASS_LABELS_FUNC') # map labels to their main parts
+                
+                # dynamicly change internal_batch_size if exists
+                if "internal_batch_size" in kwargs:
+                    kwargs["internal_batch_size"] = len(X)  
+                
+                # call attribution mathod 
+                attributions = attr_object.attribute(X,
+                                                    baselines=base_line,
+                                                    additional_forward_args = labels,
+                                                    **kwargs)
 
-            if config_attr.DISTINCT_BASE_LINE:
-                base_line =  getattr(attr_utils, config_attr.BASE_LINE_METHOD)(X)
+                bl_outputs.append(attributions)
+                bl_labels = np.append(bl_labels, labels)
+                bl_paths = np.append(bl_paths, path)
             
-            device = X.device  # get device of input tensor
-            base_line = base_line.to(device)  # move baseline to the same device
-            labels = map_labels(labels, config_attr, config_data, config_function_name='CLASS_LABELS_FUNC')
-            attributions = attr_object.attribute(X,
-                                                 baselines=base_line,
-                                                 method=config_attr.ATTR_ALGO,
-                                                 additional_forward_args = labels,
-                                                 n_steps = config_attr.N_STEPS)
+                continue # only first batch
+        bl_outputs: torch.Tensor = torch.cat(bl_outputs, dim=0)
+        all_outputs[blm] = bl_outputs
 
-            all_outputs.append(attributions)
-            all_labels = np.append(all_labels, labels)
-            all_paths = np.append(all_paths, path)
         
-    all_outputs:np.ndarray[torch.Tensor] = np.vstack(all_outputs)
-        
-
-    # embeddings, labels, paths = model.infer(data_loader)
-    # forward_func_class = globals()[f"_forward_func_{config_attr.ff_method}"](config_attr)
-    # base_line_func = globals()[f"_base_line_{config_attr.base_line_method}"]
-    # base_lines
-    # captum_model = captum.attr[f"{config_attr.attr_method}"](forward_func_class)
-    # attributions, approximation_error = captum_model.attribute(embeddings,
-    #                                              baselines=base_line_func(embeddings),
-    #                                              method=config.attr_algo)
-
-    # logging.info(f'[generate_attr_maps_with_dataloader] total attr_maps: {attr_maps.shape}')
+        all_labels[blm] = bl_labels
+        all_paths[blm] = bl_paths
     
-    # return attr_maps, labels, paths
+    save_attributions_per_channel(all_outputs, all_labels, all_paths, save_path="attributions.png", channel_names=["Nucleus", "Marker"])
+    return all_outputs, all_labels, all_paths
+        
+
+def save_attributions_per_channel(all_outputs: torch.Tensor, labels, paths, save_path: str, channel_names=None, cmap='viridis', dpi=150):
+    """
+    Saves the attribution map for each channel in the input tensor to a single image file.
+
+    Parameters:
+    - attributions (torch.Tensor): Attribution tensor of shape (C, H, W)
+    - save_path (str): Full path to save the figure (e.g., 'output/attrib.png')
+    - channel_names (list of str, optional): Names for each channel
+    - cmap (str): Colormap for plotting
+    - dpi (int): Resolution of the saved image
+    """
+    base_line_methods = list(all_outputs.keys())
+    num_baselines = len(base_line_methods)
+
+    # Assume all tensors are (N, C, H, W); take the first sample for display
+    sample = next(iter(all_outputs.values()))
+    C = sample.shape[1]
+
+    if channel_names is None:
+        channel_names = [f"Channel {i}" for i in range(C)]
+
+    fig, axes = plt.subplots(len(base_line_methods) + 1, C, figsize=(4*C, 3*(len(base_line_methods)+1)))
+    if num_baselines == 1:
+        axes = [axes]  # single row
+    if C == 1:
+        axes = [[ax] if isinstance(ax, plt.Axes) else ax for ax in axes]  # ensure 2D list
+
+    # Plot original image channels in the first row
+    img_path_df = parse_paths(paths[base_line_methods[0]])
+    path_item = img_path_df.iloc[0]
+    img_path, tile, site = Parse_Path_Item(path_item)
+    marker, nucleus, input_img = load_tile(img_path, tile)
+    input_channels = [nucleus, marker]  # Adjust order if needed
+    for col_idx in range(C):
+        ax = axes[0][col_idx]
+        ax.imshow(input_channels[col_idx], cmap='gray')  # or use cmap for consistency
+        ax.set_title(channel_names[col_idx], fontsize=12)
+        ax.set_ylabel("Input", fontsize=12)
+        ax.axis('off')
+
+    # Now plot attribution maps, starting from row 1
+    for row_idx, blm in enumerate(base_line_methods, start=1):
+        tensor = all_outputs[blm][0]  # first sample
+        
+        if tensor.device.type != 'cpu':
+            tensor = tensor.cpu()
+        tensor = tensor.detach().numpy()
+
+        for col_idx in range(C):
+            ax = axes[row_idx][col_idx]
+            channel_data = tensor[col_idx]
+            vmin = np.min(channel_data)
+            vmax = np.max(channel_data)
+
+            # Avoid zero range error
+            if vmin == vmax:
+                vmin -= 1e-6
+                vmax += 1e-6
+            ax.imshow(channel_data,cmap="bwr", vmin=vmin, vmax=vmax)
+            if col_idx == 0:
+                ax.set_ylabel(blm, fontsize=12)
+            ax.axis('off')
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=dpi)
+    plt.close()
 
 def __extract_indices_to_plot(keep_samples_dir:str, paths: np.ndarray[str], data_config: DatasetConfig):
 
