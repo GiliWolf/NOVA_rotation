@@ -225,7 +225,7 @@ def __generate_attr_maps_with_dataloader(dataset:DatasetNOVA, model:NOVAModel, c
     attr_object = getattr(captum.attr, config_attr.ATTR_METHOD)(forward_func)
     kwargs = config_attr.get_kwargs() # get kwargs for the attribution object
     if config_attr.USE_NOISE_TUNNEL: # use NoiseTunnel if specified
-        attr_object = captum.robust.NoiseTunnel(attr_object)
+        attr_object = captum.attr.NoiseTunnel(attr_object)
 
     # iteration process 
     #all_outputs:List[torch.Tensor] = []
@@ -275,6 +275,11 @@ def __generate_attr_maps_with_dataloader(dataset:DatasetNOVA, model:NOVAModel, c
                 # dynamicly change internal_batch_size if exists
                 if "internal_batch_size" in kwargs:
                     kwargs["internal_batch_size"] = len(X)  
+
+                if config_attr.USE_NOISE_TUNNEL:
+                    # repeat samples to match NOISE_TUNNEL repetition (which uses input.repeat_interleave(nt_samples_partition, dim=0))
+                    labels = np.repeat(labels, kwargs["nt_samples"], axis= 0) 
+
                 
                 # call attribution mathod 
                 attributions = attr_object.attribute(X,
@@ -286,7 +291,7 @@ def __generate_attr_maps_with_dataloader(dataset:DatasetNOVA, model:NOVAModel, c
                 bl_labels = np.append(bl_labels, labels)
                 bl_paths = np.append(bl_paths, path)
             
-                continue # only first batch
+                break # only first batch
         bl_outputs: torch.Tensor = torch.cat(bl_outputs, dim=0)
         all_outputs[blm] = bl_outputs
 

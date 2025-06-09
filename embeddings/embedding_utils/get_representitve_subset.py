@@ -57,14 +57,37 @@ def compute_distances(a1:np.array, a2:np.array, metric='euclidean'):
     distances = cdist(a1, a2, metric=metric)  
     return distances
 
-def get_pairs(flattened_distances, n_pairs, dim2):
+def get_pairs(flattened_distances, n_pairs, dim2, without_repeat = True):
+    sorted_indices = np.argsort(flattened_distances)  # sort (ascendingly)
+    pairs = [(idx // dim2, idx % dim2) for idx in sorted_indices]  # extract (i, j) from 1D index
+    
+    def unique_pairs(pairs):
+        selected = []
+        used_i = set()
+        used_j = set()
+        for i, j in pairs:
+            if i not in used_i and j not in used_j:
+                selected.append((i, j))
+                used_i.add(i)
+                used_j.add(j)
+                if len(selected) == n_pairs:
+                    break
+        return selected
+    
     # get min/max/middle dist pairs
-    sorted_indices = np.argsort(flattened_distances) # sort (ascendingly)
-    pairs = [(idx // dim2, idx % dim2) for idx in sorted_indices] # extract original (matrix) indices 
-    min_pairs = pairs[:n_pairs]
-    max_pairs = pairs[-n_pairs:]
-    middle_start = (len(pairs) // 2) - (n_pairs // 2)
-    middle_pairs = pairs[middle_start:middle_start + n_pairs]
+    middle_start = max(0, (len(pairs) // 2) - (n_pairs // 2))
+    middle_end = min(middle_start + n_pairs, len(pairs))
+    
+    if without_repeat:
+        assert len(pairs) >= n_pairs * 3, "[get subset: get pairs] Number of pairs isn't enough for without_repeat."
+        min_pairs = unique_pairs(pairs)
+        max_pairs = unique_pairs(pairs[::-1])  # reverse for max
+        middle_section = pairs[middle_start:middle_end+n_pairs]  # extra in case some repeat
+        middle_pairs = unique_pairs(middle_section)
+    else:
+        min_pairs = pairs[:n_pairs]
+        max_pairs = pairs[-n_pairs:]
+        middle_pairs = pairs[middle_start:middle_end]
     
     return min_pairs, max_pairs, middle_pairs
 

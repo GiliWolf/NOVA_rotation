@@ -14,7 +14,6 @@ DISTINCT_BASE_LINE_DICT = {
 
 class NoiseTunnelConfig:
     def __init__(self):
-        self.USE_NOISE_TUNNEL:bool = True # apply NoiseTunnel (Adds gaussian noise to each input)
 
         self.nt_samples:int = 10 # The number of randomly generated examples per sample in the input batch.
         
@@ -27,14 +26,11 @@ class NoiseTunnelConfig:
         self.draw_baseline_from_distrib:bool = None #Indicates whether to randomly draw baseline samples from the baselines distribution provided as an input tensor.
     
     def get_kwargs(self):
-        # Exclude the flag itself
         return {
             k: v for k, v in vars(self).items()
-            if k != "USE_NOISE_TUNNEL" and v is not None
+            if v is not None
         }
 
-    def to_dict(self):
-        return vars(self)
 
 
 class AttributionConfig(BaseConfig):
@@ -55,19 +51,20 @@ class AttributionConfig(BaseConfig):
 
         self.DIST_METHOD:str = "euclidean" # or cosine. only for distance based FF_METHOD
 
-        self.NOISE_TUNNEL_CONFIG = NoiseTunnelConfig()
+        self.USE_NOISE_TUNNEL:bool = False # apply NoiseTunnel (Adds gaussian noise to each input)
 
-
+        # add parameter of noise tunnel if needed
+        self.NOISE_TUNNEL_KWARGS = None
+        if self.USE_NOISE_TUNNEL:
+            self.NOISE_TUNNEL_KWARGS = NoiseTunnelConfig().get_kwargs()
+        
 
     @property
     def DISTINCT_BASE_LINE(self) -> bool:
         return DISTINCT_BASE_LINE_DICT.get(self.BASE_LINE_METHOD, False)
     
-    @property
-    def USE_NOISE_TUNNEL(self) -> bool:
-        return self.NOISE_TUNNEL_CONFIG.USE_NOISE_TUNNEL
 
-    def get_kwargs(self):
+    def get_kwargs(self, NOISE_TUNNEL_CONFIG = None):
         # Dynamically get the direct parent class (not self)
         base_class = type(self).__mro__[1]
         base_attrs = set(vars(base_class()).keys())
@@ -79,10 +76,11 @@ class AttributionConfig(BaseConfig):
         kwargs = {k: getattr(self, k) for k in diff_attrs}
 
         # add NOISE_TUNNEL parameters if spedified
-        if self.NOISE_TUNNEL_CONFIG.USE_NOISE_TUNNEL:
-            kwargs.update(self.NOISE_TUNNEL_CONFIG.get_kwargs())
+        if self.NOISE_TUNNEL_KWARGS is not None:
+            kwargs.update(self.NOISE_TUNNEL_KWARGS)
 
         return kwargs
+
 
 
 
