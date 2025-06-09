@@ -60,7 +60,7 @@ class EmbeddingsB9DatasetConfig(BaseAttnMapPlotConfig):
         
         super().__init__()
 
-        self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/EmbeddingsB9DatasetConfig/pairs/euclidean/neurons/batch9/Phalloidin"
+        self.SAMPLES_PATH:bool = "/home/projects/hornsteinlab/giliwo/NOVA_rotation/embeddings/embedding_output/EmbeddingsB9DatasetConfig/pairs/euclidean/neurons/batch9/G3BP1"
         
 
 class EmbeddingsB9DatasetConfig_Phalloidin(BaseAttnMapPlotConfig):

@@ -23,11 +23,18 @@ class SubsetConfig(EmbeddingsConfig):
         #number of pairs from each type: min/middle/max
         self.NUM_PAIRS:int = None
 
+        self.SUBSET_METHOD:str = None # the method to create the subset with :{sectional (min/max/middle), random}
+
+        self.WITHOUT_REPEAT:bool = None # don't allow repeated samples
+
         # the mutual attribute to be fixed when comparing
         self.MUTUAL_ATTR:str = None
+
+        # the value of the mitial attribute should be 
+        self.MUTUAL_ATTR_VAL:str = None
 
         # the attrubute the pair-wise distance comparison is calculated on
         self.COMPARE_BY_ATTR:str = None
 
-        # the indeces for the comparison. should be a list of 2 indices
-        self.COMPARE_BY_ATTR_IDX:list = None
+        # the names for the comparison. should be a list of 2.
+        self.COMPARE_BY_ATTR_LIST:list = None

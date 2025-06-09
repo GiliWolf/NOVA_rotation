@@ -7,9 +7,10 @@ from NOVA_rotation.Configs.subset_config import SubsetConfig
 from src.embeddings.embeddings_config import EmbeddingsConfig
 import numpy as np
 
-
-
-class EmbeddingsB9DatasetConfig(SubsetConfig):
+class BasicSubsetConfig(SubsetConfig):
+    """Config for extracting subset
+    """
+    
     def __init__(self, config):
 
         super().__init__(config)
@@ -17,73 +18,59 @@ class EmbeddingsB9DatasetConfig(SubsetConfig):
         #  metric for distance calculation
         self.METRIC:str = "euclidean"
 
-        #number of pairs from each type: min/middle/max
-        self.NUM_PAIRS:int = 25
+        self.NUM_PAIRS:int = 100
+
+        self.SUBSET_METHOD:str = "sectional" # the method to create the subset with :{sectional (min/max/middle), random}
+
+        self.WITHOUT_REPEAT:bool = True # don't allow repeated samples
+
+
+
+class WTB9SubsetConfig(BasicSubsetConfig):
+    def __init__(self, config):
+
+        super().__init__(config)
+
 
         # the mutual attribute to be fixed when comparing
         self.MUTUAL_ATTR:str = "CELL_LINES"
 
-        # the attrubute the pair-wise distance comparison is calculated on
-        self.COMPARE_BY_ATTR:str = "conditions"
-
-        # the indeces for the comparison. should be a list of 2 indices
-        self.COMPARE_BY_ATTR_IDX:list = [0,1]
-
-class EmbeddingsB9DatasetConfig_Phalloidin(SubsetConfig):
-    def __init__(self, config: EmbeddingsConfig):
-        super().__init__(config)
-
-        #  metric for distance calculation
-        self.METRIC:str = "euclidean"
-
-        #number of pairs from each type: min/middle/max
-        self.NUM_PAIRS:int = 25
-
-        # the mutual attribute to be fixed when comparing
-        self.MUTUAL_ATTR:str = "CELL_LINES"
+        self.MUTUAL_ATTR_VAL:str = "WT"
 
         # the attrubute the pair-wise distance comparison is calculated on
         self.COMPARE_BY_ATTR:str = "conditions"
 
-        # the indeces for the comparison. should be a list of 2 indices
-        self.COMPARE_BY_ATTR_IDX:list = [0,1]
+        # the names for the comparison. should be a list of 2.
+        self.COMPARE_BY_ATTR_LIST:list = ["stress", "Untreated"]
 
 
-class EmbeddingsB9DatasetConfig_FUS(SubsetConfig):
+
+class FUSBB9SubsetConfig(BasicSubsetConfig):
     def __init__(self, config: EmbeddingsConfig):
         super().__init__(config)
-
-        #  metric for distance calculation
-        self.METRIC:str = "euclidean"
-
-        #number of pairs from each type: min/middle/max
-        self.NUM_PAIRS:int = 25
 
         # the mutual attribute to be fixed when comparing
         self.MUTUAL_ATTR:str = "CONDITIONS"
 
+        self.MUTUAL_ATTR_VAL:str = "Untreated"
+
         # the attrubute the pair-wise distance comparison is calculated on
         self.COMPARE_BY_ATTR:str = "CELL_LINES"
 
-        # the indeces for the comparison. should be a list of 2 indices
-        self.COMPARE_BY_ATTR_IDX:list = [0,1]
+        self.COMPARE_BY_ATTR_LIST:list = ["FUSHomozygous", "WT"]
 
 
-class EmbeddingsdNLSB4DatasetConfig(SubsetConfig):
+class dNLSB4SubsetConfig(BasicSubsetConfig):
     def __init__(self, config: EmbeddingsConfig):
         super().__init__(config)
 
-        #  metric for distance calculation
-        self.METRIC:str = "euclidean"
-
-        #number of pairs from each type: min/middle/max
-        self.NUM_PAIRS:int = 25
 
         # the mutual attribute to be fixed when comparing
         self.MUTUAL_ATTR:str = "CELL_LINES"
 
+        self.MUTUAL_ATTR_VAL:str = "TDP43"
+
         # the attrubute the pair-wise distance comparison is calculated on
         self.COMPARE_BY_ATTR:str = "conditions"
 
-        # the indeces for the comparison. should be a list of 2 indices
-        self.COMPARE_BY_ATTR_IDX:list = [0,1]
+        self.COMPARE_BY_ATTR_LIST:list = ["dox", "Untreated"]
