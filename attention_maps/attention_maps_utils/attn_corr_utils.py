@@ -80,7 +80,7 @@ def compute_corr_data(attn_map, channels, corr_method = "pearsonr"):
     # compute entropy -
     flat_attn = attn_map.flatten()
     attn_probs = flat_attn + 1e-8  # avoid log(0)
-    norm_attn_probs /= attn_probs.sum()  # normalize to make suresum to 1
+    attn_probs /= attn_probs.sum()  # normalize to make suresum to 1
     layer_ent = entropy(attn_probs, base=2)  # base-2 entropy (bits)
     normalized_ent = layer_ent / np.log2(len(attn_probs))  # normalize to [0, 1]
 

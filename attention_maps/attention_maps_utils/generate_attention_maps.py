@@ -10,7 +10,7 @@ sys.path.insert(1, os.getenv("NOVA_HOME"))
 
 import logging
 from src.models.architectures.NOVA_model import NOVAModel
-from src.embeddings.embeddings_utils import generate_embeddings, save_embeddings
+from src.embeddings.embeddings_utils import load_embeddings
 from src.common.utils import load_config_file
 from src.datasets.dataset_config import DatasetConfig
 from src.figures.plot_config import PlotConfig
@@ -29,6 +29,8 @@ from collections import OrderedDict
 from matplotlib import gridspec
 from NOVA_rotation.load_files.load_data_from_npy import parse_paths, load_tile, load_paths_from_npy, Parse_Path_Item
 from NOVA_rotation.attention_maps.attention_maps_utils.attn_corr_utils import *
+from NOVA_rotation.Configs.subset_config import SubsetConfig
+
 
 
 """
@@ -46,8 +48,51 @@ REDUCE_HEAD_FUNC_MAP = {
     "max": np.max,
     "min": np.min,
 }
-
 def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str, config_path_plot:str, batch_size:int=700)->None:
+    config_data:DatasetConfig = load_config_file(config_path_data, "data")
+    config_plot:PlotConfig = load_config_file(config_path_plot, 'plot')
+    config_data.OUTPUTS_FOLDER = outputs_folder_path
+    
+    chkp_path = os.path.join(outputs_folder_path, CHECKPOINTS_FOLDERNAME, CHECKPOINT_BEST_FILENAME)
+    model = NOVAModel.load_from_checkpoint(chkp_path)
+
+    attn_maps, labels, paths = generate_attn_maps(model, config_data, batch_size=batch_size)
+    # save the raw attn_map (BEFORE FILTERING)
+    # OUTPUT 
+    home_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation"
+    outputs_folder_path = os.path.join(home_dir, "attention_maps/attention_maps_output")
+    save_attn_maps(attn_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "raw"))
+
+    batches = get_batches_from_input_folders(config_data.INPUT_FOLDERS)
+    markers = config_data.MARKERS
+
+    all_proccesed_attn_maps = []
+    for batch in batches:
+        for marker in markers:
+            continue
+            # filter the subset
+            if config_plot.FILTER_BY_PAIRS:
+                samples_path = os.path.join(home_dir, "embeddings/embedding_output/pairs/euclidean", config_data.EXPERIMENT_TYPE, batch, marker)
+                samples_indices = __extract_indices_to_plot(keep_samples_dir=samples_path, paths = paths, data_config = config_data)
+                attn_maps = __extract_samples_to_plot(attn_maps, samples_indices, data_config = config_data)
+                labels = __extract_samples_to_plot(labels, samples_indices, data_config = config_data)
+                paths = __extract_samples_to_plot(paths, samples_indices, data_config = config_data)
+
+            # process and plot attn_maps (AFTER FILTERING)
+            proccesed_attn_maps, corr_data = plot_attn_maps(attn_maps, labels, paths, config_data, config_plot, output_folder_path=os.path.join(outputs_folder_path, "figures", config_plot.ATTN_METHOD))
+            all_proccesed_attn_maps.append(proccesed_attn_maps)
+
+            # save the correlation data between the attn maps and input images
+            save_corr_data(corr_data, labels, config_data, output_folder_path=os.path.join(outputs_folder_path, "correlations", config_plot.ATTN_METHOD, config_plot.CORR_METHOD))
+
+            # save summary plots of the correlations
+            if config_plot.PLOT_CORR_SUMMARY:
+                plot_corr_data(corr_data, labels, config_data, config_plot, output_folder_path=os.path.join(outputs_folder_path, "figures", config_plot.ATTN_METHOD))
+
+    # save all the processed attn_map (AFTER FILTERING - without marker seperation) ??????????????????????
+    #save_attn_maps(all_proccesed_attn_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "processed", config_plot.ATTN_METHOD))
+
+def generate_attn_maps_with_model_old(outputs_folder_path:str, config_path_data:str, config_path_plot:str, batch_size:int=700)->None:
     config_data:DatasetConfig = load_config_file(config_path_data, "data")
     config_plot:PlotConfig = load_config_file(config_path_plot, 'plot')
     config_data.OUTPUTS_FOLDER = outputs_folder_path
@@ -59,8 +104,7 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
     
     # OUTPUT 
     home_dir = "/home/projects/hornsteinlab/giliwo/NOVA_rotation"
-    run_name = os.path.basename(config_path_data)
-    outputs_folder_path = os.path.join(home_dir, "attention_maps/attention_maps_output", run_name)
+    outputs_folder_path = os.path.join(home_dir, "attention_maps/attention_maps_output")
 
     if config_plot.SAMPLES_PATH is not None:
         # filter by path names 
@@ -135,8 +179,10 @@ def generate_attn_maps(model:NOVAModel, config_data:DatasetConfig,
 
 
 def save_attn_maps(attn_maps:List[np.ndarray[torch.Tensor]], 
-                    labels:List[np.ndarray[str]], paths:List[np.ndarray[str]],
-                    data_config:DatasetConfig, output_folder_path:str, attn_method:str = None)->None:
+                    labels:List[np.ndarray[str]], 
+                    paths:List[np.ndarray[str]],
+                    data_config:DatasetConfig, 
+                    output_folder_path:str)->None:
     """
         ** if attn_method is gover, process the attn_maps accordinly before saving 
     """
@@ -165,12 +211,9 @@ def save_attn_maps(attn_maps:List[np.ndarray[torch.Tensor]],
                     logging.warning(f"[save_attn_maps] SPLIT_DATA={data_config.SPLIT_DATA} BUT there exists trainset or valset in folder {batch_save_path}!! make sure you don't overwrite the testset!!")
             logging.info(f"[save_attn_maps] Saving {len(batch_indexes)} in {batch_save_path}")
 
-            # process attn maps according to the attn_method
-            if attn_method:
-                cur_attn_maps = globals()[f"__attn_map_{attn_method}"](cur_attn_maps, attn_layer_dim = 1)
 
             np.save(os.path.join(batch_save_path,f'{set_type}_labels.npy'), np.array(cur_labels[batch_indexes]))
-            np.save(os.path.join(batch_save_path,f'{set_type}_attn.npy'), cur_attn_maps[batch_indexes])
+            np.save(os.path.join(batch_save_path,f'{set_type}.npy'), cur_attn_maps[batch_indexes])
             np.save(os.path.join(batch_save_path,f'{set_type}_paths.npy'), cur_paths[batch_indexes])
 
             logging.info(f'[save_attn_maps] Finished {set_type} set, saved in {batch_save_path}')
@@ -194,7 +237,6 @@ def save_corr_data(corr_data:List[np.ndarray[torch.Tensor]],
         for batch, batch_indexes in __dict_temp.items():
             # create folder if needed
             batch_save_path = os.path.join(output_folder_path, data_config.EXPERIMENT_TYPE, batch)
-            os.makedirs(batch_save_path, exist_ok=True)
             
             if not data_config.SPLIT_DATA:
                 # If we want to save a full batch (without splittint to train/val/test), the name still will be testset.npy.
@@ -203,16 +245,18 @@ def save_corr_data(corr_data:List[np.ndarray[torch.Tensor]],
                     logging.warning(f"[save_corr_data] SPLIT_DATA={data_config.SPLIT_DATA} BUT there exists trainset or valset in folder {batch_save_path}!! make sure you don't overwrite the testset!!")
             logging.info(f"[save_corr_data] Saving {len(batch_indexes)} in {batch_save_path}")
 
-            # Extract lists
-            for ch_index in range(cur_corr_data.shape[1] - 1): # num channels 
-                corr_list = cur_corr_data[:, ch_index]
-                np.save(os.path.join(batch_save_path,f'{set_type}_corrs_ch{ch_index}.npy'), np.array(corr_list)[batch_indexes])
-            
-            ent_list = cur_corr_data[:, -1]
-            np.save(os.path.join(batch_save_path,f'{set_type}_ent.npy'), np.array(ent_list)[batch_indexes])
+            for marker in data_config.MARKERS:
+                marker_save_path = os.path.join(batch_save_path, marker)
+                os.makedirs(marker_save_path, exist_ok=True)
+                # Extract lists
+                for ch_index in range(cur_corr_data.shape[1] - 1): # num channels 
+                    corr_list = cur_corr_data[:, ch_index]
+                    np.save(os.path.join(marker_save_path,f'{set_type}_corrs_ch{ch_index}.npy'), np.array(corr_list)[batch_indexes])
+                
+                ent_list = cur_corr_data[:, -1]
+                np.save(os.path.join(marker_save_path,f'{set_type}_ent.npy'), np.array(ent_list)[batch_indexes])
   
-
-            logging.info(f'[save_corr_data] Finished {set_type} set, saved in {batch_save_path}')
+                logging.info(f'[save_corr_data] saved in {marker_save_path}')
 
 def plot_corr_data(corr_data:List[np.ndarray[torch.Tensor]], labels:List[np.ndarray[torch.Tensor]], data_config, config_plot, output_folder_path):
     """
@@ -245,7 +289,6 @@ def plot_corr_data(corr_data:List[np.ndarray[torch.Tensor]], labels:List[np.ndar
 
         for batch, batch_indexes in __dict_temp.items():
             batch_save_path = os.path.join(output_folder_path, data_config.EXPERIMENT_TYPE, batch)
-            os.makedirs(batch_save_path, exist_ok=True)
             logging.info(f"[plot_attn_maps] Saving {len(batch_indexes)} in {batch_save_path}")
 
             #extract current batch samples
@@ -253,12 +296,14 @@ def plot_corr_data(corr_data:List[np.ndarray[torch.Tensor]], labels:List[np.ndar
             batch_labels = cur_labels[batch_indexes]
         
             batch_markers = np.array(get_markers_from_labels(batch_labels))
-            cur_output_path = os.path.join(batch_save_path, set_type)
 
             # extract current marker samples and plot
             corr_by_markers = {}
             marker_names = np.unique(batch_markers)
             for marker in marker_names:
+                cur_output_path = os.path.join(batch_save_path, marker, set_type)
+                os.makedirs(cur_output_path, exist_ok=True)
+
                 indices_to_keep = batch_markers == marker
                 marker_cor = batch_corr_data[indices_to_keep]
                 logging.info(f"[plot_attn_maps] Extracting {len(marker_cor)} samples of marker {marker}.")
@@ -368,7 +413,6 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
         set_corr_data = []
         for batch, batch_indexes in __dict_temp.items():
             batch_save_path = os.path.join(output_folder_path, data_config.EXPERIMENT_TYPE, batch)
-            os.makedirs(batch_save_path, exist_ok=True)
             logging.info(f"[plot_attn_maps] Saving {len(batch_indexes)} in {batch_save_path}")
 
             #extract current batch samples
@@ -382,7 +426,8 @@ def plot_attn_maps(attn_maps: np.ndarray[float], labels: np.ndarray[str], paths:
                 img_path, tile, site = Parse_Path_Item(path_item)
 
                 # plot
-                temp_output_folder_path = os.path.join(batch_save_path, set_type, os.path.basename(img_path).split('.npy')[0])
+                marker = str(get_markers_from_labels(label))
+                temp_output_folder_path = os.path.join(batch_save_path, marker, set_type, os.path.basename(img_path).split('.npy')[0])
                 os.makedirs(temp_output_folder_path, exist_ok=True)
                 attn_map, corr_data = __plot_attn(sample_attn, (img_path, site, tile, label), img_shape, config_plot, temp_output_folder_path)
                 set_attn_maps.append(attn_map)
@@ -689,7 +734,7 @@ if __name__ == "__main__":
             except ValueError:
                 raise ValueError("Invalid batch size, must be integer")
         else:
-            batch_size = 700
+            batch_size = 200
         generate_attn_maps_with_model(outputs_folder_path, config_path_data, config_path_plot, batch_size)
         
     except Exception as e:

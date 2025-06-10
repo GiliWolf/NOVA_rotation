@@ -38,6 +38,8 @@ class WTB9SubsetConfig(BasicSubsetConfig):
 
         self.MUTUAL_ATTR_VAL:str = "WT"
 
+        self.MARKERS:List[str] = ["G3BP1", "Phalloidin"]
+
         # the attrubute the pair-wise distance comparison is calculated on
         self.COMPARE_BY_ATTR:str = "CONDITIONS"
 
@@ -59,6 +61,8 @@ class TDP43B9SubsetConfig(BasicSubsetConfig):
         self.MUTUAL_ATTR:str = "CONDITIONS"
 
         self.MUTUAL_ATTR_VAL:str = "Untreated"
+
+        self.MARKERS:List[str] = ["TDP43"]
 
         # the attrubute the pair-wise distance comparison is calculated on
         self.COMPARE_BY_ATTR:str = "CELL_LINES"
@@ -82,6 +86,8 @@ class FUSB9WTSubsetConfig(BasicSubsetConfig):
 
         self.MUTUAL_ATTR_VAL:str = "Untreated"
 
+        self.MARKERS:List[str] = ["FUS", "ANXA11"]
+
         # the attrubute the pair-wise distance comparison is calculated on
         self.COMPARE_BY_ATTR:str = "CELL_LINES"
 
@@ -100,6 +106,8 @@ class FUSB9RevertantSubsetConfig(BasicSubsetConfig):
         self.MUTUAL_ATTR:str = "CONDITIONS"
 
         self.MUTUAL_ATTR_VAL:str = "Untreated"
+
+        self.MARKERS:List[str] = ["FUS", "ANXA11"]
 
         # the attrubute the pair-wise distance comparison is calculated on
         self.COMPARE_BY_ATTR:str = "CELL_LINES"
@@ -120,6 +128,8 @@ class dNLSB4TDP43SubsetConfig(BasicSubsetConfig):
         self.MUTUAL_ATTR:str = "CELL_LINES"
 
         self.MUTUAL_ATTR_VAL:str = "TDP43"
+
+        self.MARKERS:List[str] = ["TDP43B", "DCP1A"]
 
         # the attrubute the pair-wise distance comparison is calculated on
         self.COMPARE_BY_ATTR:str = "CONDITIONS"

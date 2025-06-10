@@ -11,7 +11,7 @@ from NOVA_rotation.load_files.load_data_from_npy import load_npy_to_df, load_npy
 from NOVA.src.datasets.dataset_config import DatasetConfig
 from NOVA.src.figures.plot_config import PlotConfig
 from NOVA.src.common.utils import load_config_file
-from NOVA.src.datasets.label_utils import get_batches_from_labels, get_unique_parts_from_labels, get_markers_from_labels
+from NOVA.src.datasets.label_utils import get_batches_from_labels, get_unique_parts_from_labels, get_markers_from_labels, get_batches_from_input_folders
 import logging
 
 
@@ -218,6 +218,7 @@ def visualize_pairs(distances, flattened_distances, labeled_pairs, metric, outpu
     else:
         plt.show()
 
+
 def extract_subset(marker_labels:pd.DataFrame, marker_embeddings:pd.DataFrame, marker_paths:pd.DataFrame, set_type:str, data_config:DatasetConfig, output_dir:str):
                 """
                 extract subset of samples from marker_embeddings by -
@@ -316,11 +317,7 @@ def main(emb_dir:str, config_path_subset:str):
     for i, set_type in enumerate(data_set_types):
         # get batche names by all subdirs that starts with "batch"
         temp_input_folder_path = os.path.join(input_folder_path, data_config.EXPERIMENT_TYPE)
-        batches_names = [name for name in os.listdir(temp_input_folder_path)
-              if os.path.isdir(os.path.join(temp_input_folder_path, name)) and name.lower().startswith("batch")]
-        if not batches_names:
-            logging.info(f"Error: No batches dirs found. exiting")
-            sys.exit()
+        batches_names = get_batches_from_input_folders(data_config.INPUT_FOLDERS)
 
         for batch in batches_names:
             temp_input_folder_path = os.path.join(input_folder_path, data_config.EXPERIMENT_TYPE, batch)
@@ -334,7 +331,7 @@ def main(emb_dir:str, config_path_subset:str):
             logging.info(f"\nlabels groups for {set_type}:")
             logging.info(grouped.size())
 
-            marker_names = batch_labels['markers'].unique()
+            marker_names = data_config.MARKERS
             for marker in marker_names:
                 # filter by marker
                 marker_labels, marker_embeddings, marker_paths = filter_by_labels(batch_labels, batch_embeddings, batch_paths, {"markers": marker})

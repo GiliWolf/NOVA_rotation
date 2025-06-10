@@ -158,7 +158,7 @@ def set_adjacent_images(pdf, path1, path2, title1, title2, img_width = 95, img_h
 
 
 
-def attn_map_pdf(input_folder_path, subset_folder_path, dataset_name,data_config, plot_config, title, num_examples = 1, output_folder_path = "."):
+def attn_map_pdf(input_folder_path, subset_folder_path ,data_config, plot_config, title, num_examples = 1, output_folder_path = "."):
 
     ATTN_METHOD:str = plot_config.ATTN_METHOD
     REDUCE_HEAD_FUNC:str = plot_config.REDUCE_HEAD_FUNC
@@ -173,7 +173,7 @@ def attn_map_pdf(input_folder_path, subset_folder_path, dataset_name,data_config
         
     for i, set_type in enumerate(data_set_types):
         # get batche names by all subdirs that starts with "batch"
-        temp_input_folder_path = os.path.join(input_folder_path, dataset_name, "raw", data_config.EXPERIMENT_TYPE)
+        temp_input_folder_path = os.path.join(input_folder_path, "raw", data_config.EXPERIMENT_TYPE)
         batches_names = [name for name in os.listdir(temp_input_folder_path)
               if os.path.isdir(os.path.join(temp_input_folder_path, name)) and name.lower().startswith("batch")]
         if not batches_names:
@@ -182,8 +182,8 @@ def attn_map_pdf(input_folder_path, subset_folder_path, dataset_name,data_config
 
         for batch in batches_names:
             for marker in data_config.MARKERS:
-                fig_input_folder_path =os.path.join(input_folder_path, dataset_name, "figures", ATTN_METHOD,  data_config.EXPERIMENT_TYPE, batch, set_type)
-                temp_subset_folder_path = os.path.join(subset_folder_path, dataset_name, "pairs", data_config.METRIC, data_config.EXPERIMENT_TYPE, batch, marker)
+                fig_input_folder_path =os.path.join(input_folder_path, "figures", ATTN_METHOD,  data_config.EXPERIMENT_TYPE, batch, marker, set_type)
+                temp_subset_folder_path = os.path.join(subset_folder_path, "pairs", data_config.METRIC, data_config.EXPERIMENT_TYPE, batch, marker)
 
                 pdf = FPDF()
                 pdf.add_page()
@@ -240,7 +240,7 @@ def attn_map_pdf(input_folder_path, subset_folder_path, dataset_name,data_config
                         pdf.ln(80)
 
                 # Save
-                pdf.output(os.path.join(output_folder_path, f"{dataset_name}_attn_summary_{num_examples}.pdf"))
+                pdf.output(os.path.join(output_folder_path, f"attn_summary_{num_examples}.pdf"))
 
 def extract_pairs(pair_type:str, dist_df:pd.DataFrame, num_examples =1):
     prev_path1 = set()
@@ -276,7 +276,7 @@ def extract_pairs(pair_type:str, dist_df:pd.DataFrame, num_examples =1):
     return pair_list
 
 
-def main(subset_config_name, pdf_type):
+def main(subset_config_name, pdf_type, attn_config_name = "BaseAttnMapPlotConfig"):
 
     # path control
     emb_folder_path = "./NOVA_rotation/embeddings/embedding_output"
@@ -287,9 +287,9 @@ def main(subset_config_name, pdf_type):
 
     # load configs
     config_path_subset = os.path.join("./NOVA_rotation/Configs/manuscript_subset_config", subset_config_name)
-    config_path_plot = os.path.join("./NOVA_rotation/Configs/manuscript_attn_plot_config") #NEED TO CHECK
+    config_path_plot = os.path.join("./NOVA_rotation/Configs/manuscript_attn_plot_config", attn_config_name)
     data_config:SubsetConfig = load_config_file(config_path_subset, "data")
-    #plot_config:PlotAttnMapConfig = load_config_file(config_path_plot, "plot")
+    plot_config:PlotAttnMapConfig = load_config_file(config_path_plot, "plot")
 
     # run
     title = get_title(data_config)
@@ -298,7 +298,7 @@ def main(subset_config_name, pdf_type):
         subet_pdf(emb_folder_path, umap_folder_path, data_config, title, output_folder_path)
         print("created subet_pdf.")
     elif pdf_type == "attn_map":
-        attn_map_pdf(attn_folder_path, emb_folder_path, dataset_name, data_config, plot_config, title, num_examples = 3, output_folder_path = output_folder_path)
+        attn_map_pdf(attn_folder_path, emb_folder_path, data_config, plot_config, title, num_examples = 3, output_folder_path = output_folder_path)
         print("created attn_map_pdf.")
     else:
         print(f"[PDF summary: pdf_type <{pdf_type}> is not supported.")

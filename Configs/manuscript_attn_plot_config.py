@@ -12,6 +12,8 @@ class BaseAttnMapPlotConfig(PlotAttnMapConfig):
     def __init__(self):
         super().__init__()
 
+        self.FILTER_BY_PAIRS:bool = True # Filter attention maps bu the pairs subset before plotting
+
         # Controls transparency of the attention overlay (higher alpha = more visible red)
         self.ALPHA:float = 0.4
 
