@@ -20,7 +20,7 @@ class SubsetConfig(EmbeddingsConfig):
         #  metric for distance calculation
         self.METRIC:str = None
 
-        #number of pairs from each type: min/middle/max
+        #number of pairs from each section
         self.NUM_PAIRS:int = None
 
         self.SUBSET_METHOD:str = None # the method to create the subset with :{sectional (min/max/middle), random}

@@ -53,19 +53,24 @@ resample_methods = {
 
 
 def get_title(data_config):
-    mutual_attr:str = data_config.MUTUAL_ATTR
-    compare_by_attr:str = data_config.COMPARE_BY_ATTR
-    compare_by_attr_idx:list = data_config.COMPARE_BY_ATTR_IDX
+    mutual_param:str = data_config.MUTUAL_ATTR_VAL
+    compare_by_attr_list:list = data_config.COMPARE_BY_ATTR_LIST
+    compare_param_c1 = compare_by_attr_list[0]
+    compare_param_c2 = compare_by_attr_list[1]
 
-    mutual_param = getattr(data_config, mutual_attr.upper())[0]
-    compare_param_c1 = getattr(data_config,compare_by_attr.upper())[compare_by_attr_idx[0]]
-    compare_param_c2 = getattr(data_config,compare_by_attr.upper())[compare_by_attr_idx[1]]
 
     title = f"{mutual_param.upper()}: {compare_param_c1.upper()} VS {compare_param_c2.upper()}"
 
     return title
 
-def subet_pdf(input_folder_path, umap_folder_path, data_config, dataset_name, title, output_folder_path = "."):
+def subet_pdf(input_folder_path, umap_folder_path, data_config, title, output_folder_path = "."):
+    """
+        input_folder_path: path to the embeddings output dir
+        umap_folder_path: path to the umap output dir
+        data_config: path to the subset config 
+        title: title of the PDF 
+        output_folder_path: directory to save the files
+    """
     metric:str = data_config.METRIC
     num_pairs:int = data_config. NUM_PAIRS 
 
@@ -76,7 +81,7 @@ def subet_pdf(input_folder_path, umap_folder_path, data_config, dataset_name, ti
         
     for i, set_type in enumerate(data_set_types):
         # get batche names by all subdirs that starts with "batch"
-        temp_input_folder_path = os.path.join(input_folder_path, dataset_name, "pairs", metric, data_config.EXPERIMENT_TYPE)
+        temp_input_folder_path = os.path.join(input_folder_path, "pairs", metric, data_config.EXPERIMENT_TYPE)
         batches_names = [name for name in os.listdir(temp_input_folder_path)
               if os.path.isdir(os.path.join(temp_input_folder_path, name)) and name.lower().startswith("batch")]
         if not batches_names:
@@ -85,7 +90,7 @@ def subet_pdf(input_folder_path, umap_folder_path, data_config, dataset_name, ti
 
         for batch in batches_names:
             for marker in data_config.MARKERS:
-                temp_input_folder_path = os.path.join(input_folder_path, dataset_name, "pairs", metric, data_config.EXPERIMENT_TYPE, batch, marker)
+                temp_input_folder_path = os.path.join(input_folder_path, "pairs", metric, data_config.EXPERIMENT_TYPE, batch, marker)
                 paths = load_paths_from_npy(temp_input_folder_path, set_type)
                 
                 pdf = FPDF()
@@ -115,23 +120,26 @@ def subet_pdf(input_folder_path, umap_folder_path, data_config, dataset_name, ti
                 pdf.set_font("Arial", style='B', size=12)
                 pdf.cell(200, 10, txt="Distance Distribution", ln=True)
                 dist_fig_path = os.path.join(temp_input_folder_path, f"{metric}_distance_distribution.png")
-                pdf.image(dist_fig_path, x=10, y=pdf.get_y(), w=140, h=70)
-                pdf.ln(80)  # Adjust if needed based on image height
+                pdf.image(dist_fig_path, x=10, y=pdf.get_y(), w=140, h=90)
+                pdf.ln(100)  # Adjust if needed based on image height
 
                 # UMAP figures
                 pdf.set_font("Arial", style='B', size=12)
                 pdf.cell(200, 10, txt="UMAP Plots", ln=True)
                 pdf.ln(5)
 
-                all_samples_path = os.path.join(umap_folder_path, dataset_name, "all_samples", f"{marker}.png")
-                subset_path = os.path.join(umap_folder_path, dataset_name, "subset", f"{marker}.png")
+                temp_umap_folder_path = os.path.join(umap_folder_path, data_config.EXPERIMENT_TYPE, batch, marker)
+                all_samples_path = os.path.join(temp_umap_folder_path, "all_samples", f"{marker}.png")
+                subset_path = os.path.join(temp_umap_folder_path, "subset", f"{marker}.png")
 
                 set_adjacent_images(pdf, all_samples_path, subset_path, "All Samples", "Subset")
 
-                # Save
-                pdf.output(os.path.join(output_folder_path, f"{dataset_name}_subset_summary.pdf"))
+                # Save the PDF
+                temp_output_folder_path = os.path.join(output_folder_path,data_config.EXPERIMENT_TYPE, batch, marker)
+                os.makedirs(temp_output_folder_path, exist_ok=True)
+                pdf.output(os.path.join(temp_output_folder_path, f"subset_summary.pdf"))
 
-def set_adjacent_images(pdf, path1, path2, title1, title2, img_width = 95, img_height = 70, x_margin = 10,  buffer=10):
+def set_adjacent_images(pdf, path1, path2, title1, title2, img_width = 95, img_height = 75, x_margin = 10,  buffer=10):
         y_position = pdf.get_y()
 
         # If the next content exceeds page height, add new page
@@ -268,30 +276,36 @@ def extract_pairs(pair_type:str, dist_df:pd.DataFrame, num_examples =1):
     return pair_list
 
 
-def main():
-    dataset_name = "EmbeddingsdNLSB4DatasetConfig"
+def main(subset_config_name, pdf_type):
 
     # path control
     emb_folder_path = "./NOVA_rotation/embeddings/embedding_output"
     umap_folder_path = "./NOVA_rotation/UMAP/UMAP_output/from_embeddings"
     attn_folder_path  = "./NOVA_rotation/attention_maps/attention_maps_output"
-    output_folder_path = os.path.join("./NOVA_rotation/analysis/output", dataset_name)
+    output_folder_path = "./NOVA_rotation/analysis/output"
     os.makedirs(output_folder_path, exist_ok=True)
 
     # load configs
-    config_path_data = os.path.join("./NOVA_rotation/Configs/reps_dataset_config", dataset_name)
-    config_path_subset = os.path.join("./NOVA_rotation/Configs/manuscript_subset_config", dataset_name)
-    config_path_plot = os.path.join("./NOVA_rotation/Configs/manuscript_attn_plot_config", dataset_name)
-    data_config:SubsetConfig = load_config_file(config_path_subset, "data", args = load_config_file(config_path_data, "data"))
-    plot_config:PlotAttnMapConfig = load_config_file(config_path_plot, "plot")
+    config_path_subset = os.path.join("./NOVA_rotation/Configs/manuscript_subset_config", subset_config_name)
+    config_path_plot = os.path.join("./NOVA_rotation/Configs/manuscript_attn_plot_config") #NEED TO CHECK
+    data_config:SubsetConfig = load_config_file(config_path_subset, "data")
+    #plot_config:PlotAttnMapConfig = load_config_file(config_path_plot, "plot")
 
     # run
     title = get_title(data_config)
-    subet_pdf(emb_folder_path, umap_folder_path, data_config, dataset_name, title, output_folder_path)
-    print("created subet_pdf.")
-    attn_map_pdf(attn_folder_path, emb_folder_path, dataset_name, data_config, plot_config, title, num_examples = 3, output_folder_path = output_folder_path)
-    print("created attn_map_pdf.")
+    
+    if pdf_type == "subset":
+        subet_pdf(emb_folder_path, umap_folder_path, data_config, title, output_folder_path)
+        print("created subet_pdf.")
+    elif pdf_type == "attn_map":
+        attn_map_pdf(attn_folder_path, emb_folder_path, dataset_name, data_config, plot_config, title, num_examples = 3, output_folder_path = output_folder_path)
+        print("created attn_map_pdf.")
+    else:
+        print(f"[PDF summary: pdf_type <{pdf_type}> is not supported.")
 
 
 if __name__ == "__main__":
-    main()
+
+    subset_config_name = sys.argv[1]
+    pdf_type = sys.argv[2]
+    main(subset_config_name, pdf_type)

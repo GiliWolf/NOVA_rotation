@@ -154,39 +154,6 @@ def get_pairs(flattened_distances, matrix_shape, config):
     labeled_pairs = globals()[f"get_pairs_{config.SUBSET_METHOD}"](pairs, n_pairs = config.NUM_PAIRS, dim1 = matrix_shape[0], dim2 = matrix_shape[1], without_repeat = config.WITHOUT_REPEAT)
     return labeled_pairs
 
-# def visualize_pairs(distances, flattened_distances, min_pairs, max_pairs, middle_pairs, metric, output_dir=None):
-#     """
-#         create a distribution plot of the distanced and marker the pairs on top of it.
-#     """
-#     # Distances of selected pairs
-#     selected_min_distances = [distances[i, j] for i, j in min_pairs]
-#     selected_max_distances = [distances[i, j] for i, j in max_pairs]
-#     selected_middle_distances = [distances[i, j] for i, j in middle_pairs]
-
-
-#     plt.figure(figsize=(10, 6))
-#     plt.hist(flattened_distances, bins=50, alpha=0.7, color='blue', label='All distances')
-
-#     # Plot vertical lines
-#     for d in selected_min_distances:
-#         plt.axvline(d, color='green', linestyle='--', linewidth=1)
-
-#     for d in selected_max_distances:
-#         plt.axvline(d, color='red', linestyle='--', linewidth=1)
-
-#     for d in selected_middle_distances:
-#         plt.axvline(d, color='yellow', linestyle='--', linewidth=1)
-
-#     plt.xlabel(f"{metric} Distance")
-#     plt.ylabel("Count")
-#     plt.title("Distribution of All Pairwise Distances")
-#     plt.legend()
-
-#     if output_dir:
-#         plt.savefig(os.path.join(output_dir, f"{metric}_distance_distribution.png"))
-#         plt.close()
-#     else:
-#         plt.show()
 
 def visualize_pairs(distances, flattened_distances, labeled_pairs, metric, output_dir=None):
     """
@@ -330,14 +297,13 @@ def extract_subset(marker_labels:pd.DataFrame, marker_embeddings:pd.DataFrame, m
    
                 visualize_pairs(distances, flattened_distances, labeled_pairs, metric, output_dir=output_dir)
 
-def main(emb_dir:str,  config_path_data:str, config_path_subset:str):
+def main(emb_dir:str, config_path_subset:str):
 
-    dataset_name = os.path.basename(config_path_data)
-    input_folder_path = os.path.join(emb_dir, dataset_name, "embeddings")
-    output_folder_path = os.path.join(emb_dir, dataset_name, "pairs")
+    input_folder_path = os.path.join(emb_dir, "embeddings")
+    output_folder_path = os.path.join(emb_dir, "pairs")
 
     # init subset config with a dataset config
-    data_config:SubsetConfig = load_config_file(config_path_subset, "data", args = load_config_file(config_path_data, "data"))
+    data_config:SubsetConfig = load_config_file(config_path_subset, "data")
     data_config.OUTPUTS_FOLDER = output_folder_path
 
     metric:str = data_config.METRIC
@@ -385,13 +351,12 @@ def main(emb_dir:str,  config_path_data:str, config_path_subset:str):
                             
 if __name__ == "__main__":
     try:
-        if len(sys.argv) < 4:
-            raise ValueError("Invalid arguments. Must supply emb_dir and data config.")
+        if len(sys.argv) < 3:
+            raise ValueError("Invalid arguments. Must supply emb_dir and subset data config.")
         emb_dir = sys.argv[1]
-        config_path_data = sys.argv[2]
-        config_path_subset = sys.argv[3]
+        config_path_subset = sys.argv[2]
 
-        main(emb_dir, config_path_data, config_path_subset)
+        main(emb_dir, config_path_subset)
         
     except Exception as e:
         print(e)
