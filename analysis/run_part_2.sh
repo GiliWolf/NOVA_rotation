@@ -1,8 +1,13 @@
 
 # for all subset config in ./NOVA_rotation/Configs/manuscript_subset_config
-# run - python ./NOVA_rotation/attention_maps/attention_maps_utils/generate_attention_maps.py $MODEL_PATH <subset_config> ./NOVA_rotation/Configs/manuscript_attn_plot_config/BaseAttnMapPlotConfig
+# run - python ./NOVA_rotation/attention_maps/attention_maps_utils/generate_attention_maps.py $CURR_MODEL <subset_config> ./NOVA_rotation/Configs/manuscript_attn_plot_config/BaseAttnMapPlotConfig
 
 #!/bin/bash
+set -e
+# set model paths
+MODEL_DIR="/home/projects/hornsteinlab/Collaboration/MOmaps_Sagy/NOVA/outputs/vit_models_local"
+MODEL_NAME="finetuned_model"
+CURR_MODEL="$MODEL_DIR/$MODEL_NAME"
 
 # Set configs paths
 CONFIG_DIR="./NOVA_rotation/Configs"
@@ -44,12 +49,40 @@ for class_name in $CLASS_NAMES; do
     echo "------------------------------------------------------------------"
     echo "Generating attention maps for config class: $class_name"
 
-    echo python ./NOVA_rotation/attention_maps/attention_maps_utils/generate_attention_maps.py $MODEL_PATH $CONFIG_REF $ATTN_PLOT_PATH
+    python ./NOVA_rotation/attention_maps/attention_maps_utils/generate_attention_maps.py $CURR_MODEL $CONFIG_REF $ATTN_PLOT_PATH
 
     pid=$!
     wait $pid
     echo "Finished attention maps for config class: $class_name"
     
+done
+
+pid=$!
+wait $pid
+
+# ========================
+# 3. Create PDF summaries
+# ========================
+
+# Switch conda env to generate PDFs
+echo "------------------------------------------------------------------"
+echo "Activating conda environment: pdf"
+module load
+ml miniconda
+conda activate pdf
+pid=$!
+wait $pid
+
+# Loop again to create PDFs
+for class_name in $CLASS_NAMES; do
+    CONFIG_REF="${CONFIG_DIR}/${SUBSET_CONFIG_MODULE}/${class_name}"
+
+    echo "------------------------------------------------------------------"
+    echo "Generating PDF for: $class_name"
+    python ./NOVA_rotation/analysis/pdf_summary.py "$class_name" "attn_map" "$MODEL_NAME"
+    pid=$!
+    wait $pid
+    echo "Finished PDF for: $class_name"
 done
 
 echo "------------------------------------------------------------------"

@@ -8,6 +8,7 @@ from fpdf import FPDF
 from NOVA_rotation.load_files.load_data_from_npy import load_npy_to_df, load_npy_to_nparray, load_paths_from_npy, parse_paths
 import pandas as pd
 from src.datasets.label_utils import get_markers_from_labels
+from NOVA_rotation.embeddings.embedding_utils.subset_utils import _extract_mutual_params
 from PIL import Image
 """
 
@@ -53,17 +54,17 @@ resample_methods = {
 
 
 def get_title(data_config):
-    mutual_param:str = data_config.MUTUAL_ATTR_VAL
+    mutual_param_c1, mutual_param_c2 = _extract_mutual_params(data_config.MUTUAL_ATTR_VAL)
     compare_by_attr_list:list = data_config.COMPARE_BY_ATTR_LIST
     compare_param_c1 = compare_by_attr_list[0]
     compare_param_c2 = compare_by_attr_list[1]
 
 
-    title = f"{mutual_param.upper()}: {compare_param_c1.upper()} VS {compare_param_c2.upper()}"
+    title = f"{mutual_param_c1.upper()}: {compare_param_c1.upper()} VS {mutual_param_c2.upper()}: {compare_param_c2.upper()}"
 
     return title
 
-def subet_pdf(input_folder_path, umap_folder_path, data_config, title, output_folder_path = "."):
+def subet_pdf(input_folder_path, umap_folder_path, data_config, title, subset_config_name, output_folder_path = "."):
     """
         input_folder_path: path to the embeddings output dir
         umap_folder_path: path to the umap output dir
@@ -90,7 +91,7 @@ def subet_pdf(input_folder_path, umap_folder_path, data_config, title, output_fo
 
         for batch in batches_names:
             for marker in data_config.MARKERS:
-                temp_input_folder_path = os.path.join(input_folder_path, "pairs", metric, data_config.EXPERIMENT_TYPE, batch, marker)
+                temp_input_folder_path = os.path.join(input_folder_path, "pairs", metric, data_config.EXPERIMENT_TYPE, batch,subset_config_name, marker)
                 paths = load_paths_from_npy(temp_input_folder_path, set_type)
                 
                 pdf = FPDF()
@@ -128,14 +129,14 @@ def subet_pdf(input_folder_path, umap_folder_path, data_config, title, output_fo
                 pdf.cell(200, 10, txt="UMAP Plots", ln=True)
                 pdf.ln(5)
 
-                temp_umap_folder_path = os.path.join(umap_folder_path, data_config.EXPERIMENT_TYPE, batch, marker)
+                temp_umap_folder_path = os.path.join(umap_folder_path, data_config.EXPERIMENT_TYPE, batch, subset_config_name, marker)
                 all_samples_path = os.path.join(temp_umap_folder_path, "all_samples", f"{marker}.png")
                 subset_path = os.path.join(temp_umap_folder_path, "subset", f"{marker}.png")
 
                 set_adjacent_images(pdf, all_samples_path, subset_path, "All Samples", "Subset")
 
                 # Save the PDF
-                temp_output_folder_path = os.path.join(output_folder_path,data_config.EXPERIMENT_TYPE, batch, marker)
+                temp_output_folder_path = os.path.join(output_folder_path,data_config.EXPERIMENT_TYPE, batch, subset_config_name, marker)
                 os.makedirs(temp_output_folder_path, exist_ok=True)
                 pdf.output(os.path.join(temp_output_folder_path, f"subset_summary.pdf"))
 
@@ -158,7 +159,7 @@ def set_adjacent_images(pdf, path1, path2, title1, title2, img_width = 95, img_h
 
 
 
-def attn_map_pdf(input_folder_path, subset_folder_path ,data_config, plot_config, title, num_examples = 1, output_folder_path = "."):
+def attn_map_pdf(input_folder_path, subset_folder_path ,data_config, plot_config, title, subset_config_name, num_examples = 1, output_folder_path = "."):
 
     ATTN_METHOD:str = plot_config.ATTN_METHOD
     REDUCE_HEAD_FUNC:str = plot_config.REDUCE_HEAD_FUNC
@@ -239,8 +240,11 @@ def attn_map_pdf(input_folder_path, subset_folder_path ,data_config, plot_config
                                             title2= c2)
                         pdf.ln(80)
 
-                # Save
-                pdf.output(os.path.join(output_folder_path, f"attn_summary_{num_examples}.pdf"))
+                # Save the PDF
+                temp_output_folder_path = os.path.join(output_folder_path,data_config.EXPERIMENT_TYPE, batch, subset_config_name, marker)
+                os.makedirs(temp_output_folder_path, exist_ok=True)
+                pdf.output(os.path.join(temp_output_folder_path, f"attn_summary_{num_examples}.pdf"))
+
 
 def extract_pairs(pair_type:str, dist_df:pd.DataFrame, num_examples =1):
     prev_path1 = set()
@@ -276,13 +280,13 @@ def extract_pairs(pair_type:str, dist_df:pd.DataFrame, num_examples =1):
     return pair_list
 
 
-def main(subset_config_name, pdf_type, attn_config_name = "BaseAttnMapPlotConfig"):
+def main(subset_config_name, pdf_type, model_name, attn_config_name = "BaseAttnMapPlotConfig"):
 
     # path control
-    emb_folder_path = "./NOVA_rotation/embeddings/embedding_output"
-    umap_folder_path = "./NOVA_rotation/UMAP/UMAP_output/from_embeddings"
-    attn_folder_path  = "./NOVA_rotation/attention_maps/attention_maps_output"
-    output_folder_path = "./NOVA_rotation/analysis/output"
+    emb_folder_path = f"./NOVA_rotation/embeddings/embedding_output/{model_name}"
+    umap_folder_path = f"./NOVA_rotation/UMAP/UMAP_output/from_embeddings/{model_name}"
+    attn_folder_path  = f"./NOVA_rotation/attention_maps/attention_maps_output/{model_name}"
+    output_folder_path = f"./NOVA_rotation/analysis/output/{model_name}"
     os.makedirs(output_folder_path, exist_ok=True)
 
     # load configs
@@ -295,10 +299,10 @@ def main(subset_config_name, pdf_type, attn_config_name = "BaseAttnMapPlotConfig
     title = get_title(data_config)
     
     if pdf_type == "subset":
-        subet_pdf(emb_folder_path, umap_folder_path, data_config, title, output_folder_path)
+        subet_pdf(emb_folder_path, umap_folder_path, data_config, title, subset_config_name, output_folder_path)
         print("created subet_pdf.")
     elif pdf_type == "attn_map":
-        attn_map_pdf(attn_folder_path, emb_folder_path, data_config, plot_config, title, num_examples = 3, output_folder_path = output_folder_path)
+        attn_map_pdf(attn_folder_path, emb_folder_path, data_config, plot_config, title, subset_config_name, num_examples = 3, output_folder_path = output_folder_path)
         print("created attn_map_pdf.")
     else:
         print(f"[PDF summary: pdf_type <{pdf_type}> is not supported.")
@@ -308,4 +312,5 @@ if __name__ == "__main__":
 
     subset_config_name = sys.argv[1]
     pdf_type = sys.argv[2]
-    main(subset_config_name, pdf_type)
+    model_name = sys.argv[3]
+    main(subset_config_name, pdf_type, model_name)

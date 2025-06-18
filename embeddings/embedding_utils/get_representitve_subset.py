@@ -9,6 +9,7 @@ import os
 sys.path.insert(0, os.getenv("HOME"))
 from NOVA_rotation.load_files.load_data_from_npy import load_npy_to_df, load_npy_to_nparray, load_paths_from_npy
 from NOVA.src.datasets.dataset_config import DatasetConfig
+from NOVA_rotation.embeddings.embedding_utils.subset_utils import _extract_mutual_params
 from NOVA.src.figures.plot_config import PlotConfig
 from NOVA.src.common.utils import load_config_file
 from NOVA.src.datasets.label_utils import get_batches_from_labels, get_unique_parts_from_labels, get_markers_from_labels, get_batches_from_input_folders
@@ -219,6 +220,7 @@ def visualize_pairs(distances, flattened_distances, labeled_pairs, metric, outpu
         plt.show()
 
 
+
 def extract_subset(marker_labels:pd.DataFrame, marker_embeddings:pd.DataFrame, marker_paths:pd.DataFrame, set_type:str, data_config:DatasetConfig, output_dir:str):
                 """
                 extract subset of samples from marker_embeddings by -
@@ -230,14 +232,14 @@ def extract_subset(marker_labels:pd.DataFrame, marker_embeddings:pd.DataFrame, m
                 # extract data from config 
                 metric:str = data_config.METRIC
                 mutual_attr:str = data_config.MUTUAL_ATTR
-                mutual_param:str = data_config.MUTUAL_ATTR_VAL
+                mutual_param_c1, mutual_param_c2 = _extract_mutual_params(data_config.MUTUAL_ATTR_VAL)
                 compare_by_attr:str = data_config.COMPARE_BY_ATTR
                 compare_by_attr_list:list = data_config.COMPARE_BY_ATTR_LIST
                 compare_param_c1 = compare_by_attr_list[0]
                 compare_param_c2 = compare_by_attr_list[1]
 
-                filtered_labels_c1, filtered_embeddings_c1, filtered_paths_c1  = filter_by_labels(marker_labels, marker_embeddings, marker_paths, {mutual_attr.lower():mutual_param, compare_by_attr.lower():compare_param_c1})
-                filtered_labels_c2, filtered_embeddings_c2, filtered_paths_c2 = filter_by_labels(marker_labels, marker_embeddings, marker_paths, {mutual_attr.lower():mutual_param, compare_by_attr.lower():compare_param_c2})
+                filtered_labels_c1, filtered_embeddings_c1, filtered_paths_c1  = filter_by_labels(marker_labels, marker_embeddings, marker_paths, {mutual_attr.lower():mutual_param_c1, compare_by_attr.lower():compare_param_c1})
+                filtered_labels_c2, filtered_embeddings_c2, filtered_paths_c2 = filter_by_labels(marker_labels, marker_embeddings, marker_paths, {mutual_attr.lower():mutual_param_c2, compare_by_attr.lower():compare_param_c2})
                 
                 #convert to nparraay
                 filtered_embeddings_c1 = np.array(filtered_embeddings_c1)
@@ -263,7 +265,7 @@ def extract_subset(marker_labels:pd.DataFrame, marker_embeddings:pd.DataFrame, m
 
                 c1_indices = np.array(list(c1_indices))
                 c2_indices = np.array(list(c2_indices))
-                logging.info(f"Selected {len(c1_indices)} {compare_param_c1} samples and {len(c2_indices)} {compare_param_c2} samples.")
+                logging.info(f"Selected {len(c1_indices)} {mutual_param_c1}:{compare_param_c1} samples and {len(c2_indices)} {mutual_param_c2}:{compare_param_c2} samples.")
 
                 # Save distances
                 distances_data = []
@@ -304,6 +306,7 @@ def main(emb_dir:str, config_path_subset:str):
     output_folder_path = os.path.join(emb_dir, "pairs")
 
     # init subset config with a dataset config
+    subset_name:str = os.path.basename(config_path_subset)
     data_config:SubsetConfig = load_config_file(config_path_subset, "data")
     data_config.OUTPUTS_FOLDER = output_folder_path
 
@@ -333,13 +336,13 @@ def main(emb_dir:str, config_path_subset:str):
 
             marker_names = data_config.MARKERS
             for marker in marker_names:
-                # filter by marker
+                # filter by markers
                 marker_labels, marker_embeddings, marker_paths = filter_by_labels(batch_labels, batch_embeddings, batch_paths, {"markers": marker})
                 if marker_labels.empty:
                     logging.info(f"Error: No samples found for marker {marker}. continues.")
                     continue
 
-                temp_output_dir = os.path.join(output_folder_path, metric, data_config.EXPERIMENT_TYPE, batch, marker)
+                temp_output_dir = os.path.join(output_folder_path, metric, data_config.EXPERIMENT_TYPE, batch, subset_name, marker)
                 os.makedirs(temp_output_dir, exist_ok=True)
 
                 # run extraction of subset logic

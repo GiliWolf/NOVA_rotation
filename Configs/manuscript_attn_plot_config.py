@@ -52,6 +52,10 @@ class BaseAttnMapPlotConfig(PlotAttnMapConfig):
         self.CORR_METHOD:str = "pearsonr" #options: ["pearsonr", "mutual_info", "ssim", "attn_overlap"]
 
         self.PLOT_CORR_SUMMARY:bool = True
+
+        self.SAVE_CORR_SEPERATE_MARKERS:bool = True
+
+        self.SAVE_CORR_ALL_MARKERS:bool = True
         
         self.PLOT_CORR_SEPERATE_MARKERS:bool = True
 

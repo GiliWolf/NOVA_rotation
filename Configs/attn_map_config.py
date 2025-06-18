@@ -61,6 +61,10 @@ class PlotAttnMapConfig(BaseConfig):
         self.CORR_METHOD:str = None
 
         self.PLOT_CORR_SUMMARY:bool = None
+
+        self.SAVE_CORR_SEPERATE_MARKERS:bool = None
+
+        self.SAVE_CORR_ALL_MARKERS:bool = None
         
         self.PLOT_CORR_SEPERATE_MARKERS:bool = None
 

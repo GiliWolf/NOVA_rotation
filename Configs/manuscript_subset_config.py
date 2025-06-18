@@ -18,7 +18,7 @@ class BasicSubsetConfig(SubsetConfig):
         #  metric for distance calculation
         self.METRIC:str = "euclidean"
 
-        self.NUM_PAIRS:int = 100
+        self.NUM_PAIRS:int = 25
 
         self.SUBSET_METHOD:str = "sectional" # the method to create the subset with :{sectional (min/max/middle), random}
 
@@ -30,7 +30,7 @@ class WTB9SubsetConfig(BasicSubsetConfig):
     def __init__(self):
         
         config = EmbeddingsB9DatasetConfig()
-
+        
         super().__init__(config)
 
         # the mutual attribute to be fixed when comparing
@@ -128,6 +128,27 @@ class dNLSB4TDP43SubsetConfig(BasicSubsetConfig):
         self.MUTUAL_ATTR:str = "CELL_LINES"
 
         self.MUTUAL_ATTR_VAL:str = "TDP43"
+
+        self.MARKERS:List[str] = ["TDP43B", "DCP1A"]
+
+        # the attrubute the pair-wise distance comparison is calculated on
+        self.COMPARE_BY_ATTR:str = "CONDITIONS"
+
+        self.COMPARE_BY_ATTR_LIST:list = ["dox", "Untreated"]
+
+        self.UMAP_PLOT_CONFIG:str = "UMAP0dNLSPlotConfig"
+
+class dNLSB4TDP43andWTSubsetConfig(BasicSubsetConfig):
+    def __init__(self):
+
+        config = EmbeddingsdNLSB4DatasetConfig()
+
+        super().__init__(config)
+
+        # the mutual attribute to be fixed when comparing
+        self.MUTUAL_ATTR:str = "CELL_LINES"
+
+        self.MUTUAL_ATTR_VAL:str = ["TDP43", "WT"]
 
         self.MARKERS:List[str] = ["TDP43B", "DCP1A"]
 

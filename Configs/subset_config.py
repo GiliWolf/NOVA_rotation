@@ -30,8 +30,10 @@ class SubsetConfig(EmbeddingsConfig):
         # the mutual attribute to be fixed when comparing
         self.MUTUAL_ATTR:str = None
 
-        # the value of the mitial attribute should be 
-        self.MUTUAL_ATTR_VAL:str = None
+        # the value of the mutial attribute should be:
+        # if - (1) single str/ list with of length 1 - shared between the COMPARE_BY_ATTR
+        #      (2) list of length > 1,  try to match each index to the COMPARE_BY_ATTR_LIST index
+        self.MUTUAL_ATTR_VAL = None
 
         # the attrubute the pair-wise distance comparison is calculated on
         self.COMPARE_BY_ATTR:str = None

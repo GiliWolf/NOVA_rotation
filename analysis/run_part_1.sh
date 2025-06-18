@@ -1,7 +1,7 @@
 # conda activate nova_nova
 # get embeddings - 
 # for all the configs in  - ./NOVA_rotation/Configs/reps_dataset_config
-# run: ./NOVA/runnables/generate_embeddings.py $MODEL_PATH <dataset_config>
+# run: ./NOVA/runnables/generate_embeddings.py $CURR_MODEL <dataset_config>
 
 # get subset - 
 # for all the configs in - /home/projects/hornsteinlab/giliwo/NOVA_rotation/Configs/manuscript_subset_config except BasicSubsetConfig
@@ -18,6 +18,11 @@
 
 
 #!/bin/bash
+
+# set model paths
+MODEL_DIR="/home/projects/hornsteinlab/Collaboration/MOmaps_Sagy/NOVA/outputs/vit_models_local"
+MODEL_NAME="finetuned_model"
+CURR_MODEL="$MODEL_DIR/$MODEL_NAME"
 
 # Set configs paths
 CONFIG_DIR="./NOVA_rotation/Configs"
@@ -56,7 +61,7 @@ for class_name in $CLASS_NAMES; do
 
     echo "------------------------------------------------------------------"
     echo "Creating embeddings for class: $class_name"
-    python ./NOVA/runnables/generate_embeddings.py $MODEL_PATH $CONFIG_REF
+    python ./NOVA/runnables/generate_embeddings.py $CURR_MODEL $CONFIG_REF
     pid=$!
     wait $pid
     echo "Finished embeddings for class: $class_name"
@@ -87,7 +92,7 @@ for class_name in $CLASS_NAMES; do
     echo "Extracting subset for config class: $class_name"
     # Subset step
     python ./NOVA_rotation/embeddings/embedding_utils/get_representitve_subset.py \
-        ./NOVA_rotation/embeddings/embedding_output "$CONFIG_REF"
+        "./NOVA_rotation/embeddings/embedding_output/${MODEL_NAME}" "$CONFIG_REF"
     pid=$!
     wait $pid
     echo "Finished subset for config class: $class_name"
@@ -96,7 +101,8 @@ for class_name in $CLASS_NAMES; do
     echo "Generating UMAP for config class: $class_name"
     # UMAP step
     python ./NOVA_rotation/UMAP/UMAP_utils/generate_umaps_and_plot_test.py \
-        ./NOVA_rotation/UMAP/UMAP_output/from_embeddings \
+        "./NOVA_rotation/embeddings/embedding_output/${MODEL_NAME}" \
+        "./NOVA_rotation/UMAP/UMAP_output/from_embeddings/${MODEL_NAME}" \
         ./NOVA_rotation/Configs/umap_config/UMAP_Subset_Config \
         "$CONFIG_REF"
     pid=$!
@@ -125,7 +131,7 @@ for class_name in $CLASS_NAMES; do
 
     echo "------------------------------------------------------------------"
     echo "Generating PDF for: $class_name"
-    python ./NOVA_rotation/analysis/pdf_summary.py "$class_name" "subset"
+    python ./NOVA_rotation/analysis/pdf_summary.py "$class_name" "subset" "$MODEL_NAME"
     pid=$!
     wait $pid
     echo "Finished PDF for: $class_name"
