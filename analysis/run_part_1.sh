@@ -21,7 +21,7 @@
 
 # set model paths
 MODEL_DIR="/home/projects/hornsteinlab/Collaboration/MOmaps_Sagy/NOVA/outputs/vit_models_local"
-MODEL_NAME="finetuned_model"
+MODEL_NAME="pretrained_model"
 CURR_MODEL="$MODEL_DIR/$MODEL_NAME"
 
 # Set configs paths

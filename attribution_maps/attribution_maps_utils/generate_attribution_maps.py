@@ -281,7 +281,7 @@ def __generate_attr_maps_with_dataloader(dataset:DatasetNOVA, model:NOVAModel, c
                     labels = np.repeat(labels, kwargs["nt_samples"], axis= 0) 
 
                 
-                # call attribution mathod 
+                # call attribution method 
                 attributions = attr_object.attribute(X,
                                                     baselines=base_line,
                                                     additional_forward_args = labels,

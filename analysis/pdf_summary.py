@@ -184,7 +184,8 @@ def attn_map_pdf(input_folder_path, subset_folder_path ,data_config, plot_config
         for batch in batches_names:
             for marker in data_config.MARKERS:
                 fig_input_folder_path =os.path.join(input_folder_path, "figures", ATTN_METHOD,  data_config.EXPERIMENT_TYPE, batch, marker, set_type)
-                temp_subset_folder_path = os.path.join(subset_folder_path, "pairs", data_config.METRIC, data_config.EXPERIMENT_TYPE, batch, marker)
+                corr_input_folder_path =os.path.join(input_folder_path, "correlations", ATTN_METHOD,  CORR_METHOD ,data_config.EXPERIMENT_TYPE, batch, marker)
+                temp_subset_folder_path = os.path.join(subset_folder_path, "pairs", data_config.METRIC, data_config.EXPERIMENT_TYPE, batch,subset_config_name, marker)
 
                 pdf = FPDF()
                 pdf.add_page()
@@ -211,8 +212,8 @@ def attn_map_pdf(input_folder_path, subset_folder_path ,data_config, plot_config
                 # correlation fig
                 pdf.set_font("Arial", style='B', size=12)
                 pdf.cell(200, 10, txt="Correlation Plot", ln=True)
-                dist_fig_path = os.path.join(fig_input_folder_path, f"{CORR_METHOD}_correlation.png")
-                pdf.image(dist_fig_path, x=10, y=pdf.get_y(), w=120, h=140)
+                corr_fig_path = os.path.join(corr_input_folder_path, f"{marker}_{CORR_METHOD}_correlation.png")
+                pdf.image(corr_fig_path, x=10, y=pdf.get_y(), w=120, h=140)
                 pdf.ln(150)  # Adjust if needed based on image height
 
                 # Attn maps examples
@@ -243,7 +244,7 @@ def attn_map_pdf(input_folder_path, subset_folder_path ,data_config, plot_config
                 # Save the PDF
                 temp_output_folder_path = os.path.join(output_folder_path,data_config.EXPERIMENT_TYPE, batch, subset_config_name, marker)
                 os.makedirs(temp_output_folder_path, exist_ok=True)
-                pdf.output(os.path.join(temp_output_folder_path, f"attn_summary_{num_examples}.pdf"))
+                pdf.output(os.path.join(temp_output_folder_path, f"attn_map_summary.pdf"))
 
 
 def extract_pairs(pair_type:str, dist_df:pd.DataFrame, num_examples =1):

@@ -26,137 +26,244 @@ class BasicSubsetConfig(SubsetConfig):
 
 
 
+# class WTB9SubsetConfig(BasicSubsetConfig):
+#     def __init__(self):
+        
+#         config = EmbeddingsB9DatasetConfig()
+        
+#         super().__init__(config)
+
+#         # the mutual attribute to be fixed when comparing
+#         self.MUTUAL_ATTR:str = "CELL_LINES"
+
+#         self.MUTUAL_ATTR_VAL:str = "WT"
+
+#         self.MARKERS:List[str] = ["G3BP1", "Phalloidin"]
+
+#         # the attrubute the pair-wise distance comparison is calculated on
+#         self.COMPARE_BY_ATTR:str = "CONDITIONS"
+
+#         # the names for the comparison. should be a list of 2.
+#         self.COMPARE_BY_ATTR_LIST:list = ["stress", "Untreated"]
+
+#         self.UMAP_PLOT_CONFIG:str = "UMAP0StressPlotConfig"
+
 class WTB9SubsetConfig(BasicSubsetConfig):
     def __init__(self):
-        
         config = EmbeddingsB9DatasetConfig()
-        
         super().__init__(config)
 
         # the mutual attribute to be fixed when comparing
-        self.MUTUAL_ATTR:str = "CELL_LINES"
+        self.MUTUAL_ATTR: str = "CELL_LINES"
+        self.CELL_LINES: list = ["WT"]
 
-        self.MUTUAL_ATTR_VAL:str = "WT"
-
-        self.MARKERS:List[str] = ["G3BP1", "Phalloidin"]
+        self.MARKERS: List[str] = ["G3BP1", "Phalloidin"]
 
         # the attrubute the pair-wise distance comparison is calculated on
-        self.COMPARE_BY_ATTR:str = "CONDITIONS"
+        self.COMPARE_BY_ATTR: str = "CONDITIONS"
+        self.CONDITIONS: list = ["stress", "Untreated"]
 
         # the names for the comparison. should be a list of 2.
-        self.COMPARE_BY_ATTR_LIST:list = ["stress", "Untreated"]
+        self.UMAP_PLOT_CONFIG: str = "UMAP0StressPlotConfig"
 
-        self.UMAP_PLOT_CONFIG:str = "UMAP0StressPlotConfig"
+# class TDP43B9SubsetConfig(BasicSubsetConfig):
+#     def __init__(self):
 
+#         config = EmbeddingsB9DatasetConfig()
+
+#         super().__init__(config)
+
+
+#         # the mutual attribute to be fixed when comparing
+#         self.MUTUAL_ATTR:str = "CONDITIONS"
+
+#         self.MUTUAL_ATTR_VAL:str = "Untreated"
+
+#         self.MARKERS:List[str] = ["TDP43"]
+
+#         # the attrubute the pair-wise distance comparison is calculated on
+#         self.COMPARE_BY_ATTR:str = "CELL_LINES"
+
+#         # the names for the comparison. should be a list of 2.
+#         self.COMPARE_BY_ATTR_LIST:list = ["TDP43", "WT"]
+
+#         self.UMAP_PLOT_CONFIG:str = "UMAP0ALSPlotConfig"
 
 class TDP43B9SubsetConfig(BasicSubsetConfig):
     def __init__(self):
-
         config = EmbeddingsB9DatasetConfig()
-
         super().__init__(config)
 
-
         # the mutual attribute to be fixed when comparing
-        self.MUTUAL_ATTR:str = "CONDITIONS"
+        self.MUTUAL_ATTR: str = "CONDITIONS"
+        self.CONDITIONS: list = ["Untreated"]
 
-        self.MUTUAL_ATTR_VAL:str = "Untreated"
-
-        self.MARKERS:List[str] = ["TDP43"]
+        self.MARKERS: List[str] = ["TDP43"]
 
         # the attrubute the pair-wise distance comparison is calculated on
-        self.COMPARE_BY_ATTR:str = "CELL_LINES"
+        self.COMPARE_BY_ATTR: str = "CELL_LINES"
+        self.CELL_LINES: list = ["TDP43", "WT"]
 
         # the names for the comparison. should be a list of 2.
-        self.COMPARE_BY_ATTR_LIST:list = ["TDP43", "WT"]
-
-        self.UMAP_PLOT_CONFIG:str = "UMAP0ALSPlotConfig"
+        self.UMAP_PLOT_CONFIG: str = "UMAP0ALSPlotConfig"
 
 
+# class FUSB9WTSubsetConfig(BasicSubsetConfig):
+#     def __init__(self):
+
+#         config = EmbeddingsB9DatasetConfig()
+
+#         super().__init__(config)
+
+#         # the mutual attribute to be fixed when comparing
+#         self.MUTUAL_ATTR:str = "CONDITIONS"
+
+#         self.MUTUAL_ATTR_VAL:str = "Untreated"
+
+#         self.MARKERS:List[str] = ["FUS", "ANXA11"]
+
+#         # the attrubute the pair-wise distance comparison is calculated on
+#         self.COMPARE_BY_ATTR:str = "CELL_LINES"
+
+#         self.COMPARE_BY_ATTR_LIST:list = ["FUSHomozygous", "WT"]
+
+#         self.UMAP_PLOT_CONFIG:str = "UMAP0ALSPlotConfig"
 
 class FUSB9WTSubsetConfig(BasicSubsetConfig):
     def __init__(self):
-
         config = EmbeddingsB9DatasetConfig()
-
         super().__init__(config)
 
         # the mutual attribute to be fixed when comparing
-        self.MUTUAL_ATTR:str = "CONDITIONS"
+        self.MUTUAL_ATTR: str = "CONDITIONS"
+        self.CONDITIONS: list = ["Untreated"]
 
-        self.MUTUAL_ATTR_VAL:str = "Untreated"
-
-        self.MARKERS:List[str] = ["FUS", "ANXA11"]
+        self.MARKERS: List[str] = ["FUS", "ANXA11"]
 
         # the attrubute the pair-wise distance comparison is calculated on
-        self.COMPARE_BY_ATTR:str = "CELL_LINES"
+        self.COMPARE_BY_ATTR: str = "CELL_LINES"
+        self.CELL_LINES: list = ["FUSHomozygous", "WT"]
 
-        self.COMPARE_BY_ATTR_LIST:list = ["FUSHomozygous", "WT"]
+        # the names for the comparison. should be a list of 2.
+        self.UMAP_PLOT_CONFIG: str = "UMAP0ALSPlotConfig"
 
-        self.UMAP_PLOT_CONFIG:str = "UMAP0ALSPlotConfig"
+# class FUSB9RevertantSubsetConfig(BasicSubsetConfig):
+#     def __init__(self):
+
+#         config = EmbeddingsB9DatasetConfig()
+
+#         super().__init__(config)
+
+#         # the mutual attribute to be fixed when comparing
+#         self.MUTUAL_ATTR:str = "CONDITIONS"
+
+#         self.MUTUAL_ATTR_VAL:str = "Untreated"
+
+#         self.MARKERS:List[str] = ["FUS", "ANXA11"]
+
+#         # the attrubute the pair-wise distance comparison is calculated on
+#         self.COMPARE_BY_ATTR:str = "CELL_LINES"
+
+#         self.COMPARE_BY_ATTR_LIST:list = ["FUSHomozygous", "FUSRevertant"]
+
+#         self.UMAP_PLOT_CONFIG:str = "UMAP0ALSPlotConfig"
 
 class FUSB9RevertantSubsetConfig(BasicSubsetConfig):
     def __init__(self):
-
         config = EmbeddingsB9DatasetConfig()
-
         super().__init__(config)
 
         # the mutual attribute to be fixed when comparing
-        self.MUTUAL_ATTR:str = "CONDITIONS"
+        self.MUTUAL_ATTR: str = "CONDITIONS"
+        self.CONDITIONS: list = ["Untreated"]
 
-        self.MUTUAL_ATTR_VAL:str = "Untreated"
-
-        self.MARKERS:List[str] = ["FUS", "ANXA11"]
+        self.MARKERS: List[str] = ["FUS", "ANXA11"]
 
         # the attrubute the pair-wise distance comparison is calculated on
-        self.COMPARE_BY_ATTR:str = "CELL_LINES"
+        self.COMPARE_BY_ATTR: str = "CELL_LINES"
+        self.CELL_LINES: list = ["FUSHomozygous", "FUSRevertant"]
 
-        self.COMPARE_BY_ATTR_LIST:list = ["FUSHomozygous", "FUSRevertant"]
+        # the names for the comparison. should be a list of 2.
+        self.UMAP_PLOT_CONFIG: str = "UMAP0ALSPlotConfig"
 
-        self.UMAP_PLOT_CONFIG:str = "UMAP0ALSPlotConfig"
+# class dNLSB4TDP43SubsetConfig(BasicSubsetConfig):
+#     def __init__(self):
 
+#         config = EmbeddingsdNLSB4DatasetConfig()
+
+#         super().__init__(config)
+
+#         # the mutual attribute to be fixed when comparing
+#         self.MUTUAL_ATTR:str = "CELL_LINES"
+
+#         self.MUTUAL_ATTR_VAL:str = "TDP43"
+
+#         self.MARKERS:List[str] = ["TDP43B", "DCP1A"]
+
+#         # the attrubute the pair-wise distance comparison is calculated on
+#         self.COMPARE_BY_ATTR:str = "CONDITIONS"
+
+#         self.COMPARE_BY_ATTR_LIST:list = ["dox", "Untreated"]
+
+#         self.UMAP_PLOT_CONFIG:str = "UMAP0dNLSPlotConfig"
 
 class dNLSB4TDP43SubsetConfig(BasicSubsetConfig):
     def __init__(self):
-
         config = EmbeddingsdNLSB4DatasetConfig()
-
         super().__init__(config)
 
         # the mutual attribute to be fixed when comparing
-        self.MUTUAL_ATTR:str = "CELL_LINES"
+        self.MUTUAL_ATTR: str = "CELL_LINES"
+        self.CELL_LINES: list = ["TDP43"]
 
-        self.MUTUAL_ATTR_VAL:str = "TDP43"
-
-        self.MARKERS:List[str] = ["TDP43B", "DCP1A"]
+        self.MARKERS: List[str] = ["TDP43B", "DCP1A"]
 
         # the attrubute the pair-wise distance comparison is calculated on
-        self.COMPARE_BY_ATTR:str = "CONDITIONS"
+        self.COMPARE_BY_ATTR: str = "CONDITIONS"
+        self.CONDITIONS: list = ["dox", "Untreated"]
 
-        self.COMPARE_BY_ATTR_LIST:list = ["dox", "Untreated"]
+        # the names for the comparison. should be a list of 2.
+        self.UMAP_PLOT_CONFIG: str = "UMAP0dNLSPlotConfig"
 
-        self.UMAP_PLOT_CONFIG:str = "UMAP0dNLSPlotConfig"
+
+# class dNLSB4TDP43andWTSubsetConfig(BasicSubsetConfig):
+#     def __init__(self):
+
+#         config = EmbeddingsdNLSB4DatasetConfig()
+
+#         super().__init__(config)
+
+#         # the mutual attribute to be fixed when comparing
+#         self.MUTUAL_ATTR:str = "CELL_LINES"
+
+#         self.MUTUAL_ATTR_VAL:str = ["TDP43", "WT"]
+
+#         self.MARKERS:List[str] = ["TDP43B", "DCP1A"]
+
+#         # the attrubute the pair-wise distance comparison is calculated on
+#         self.COMPARE_BY_ATTR:str = "CONDITIONS"
+
+#         self.COMPARE_BY_ATTR_LIST:list = ["dox", "Untreated"]
+
+#         self.UMAP_PLOT_CONFIG:str = "UMAP0dNLSPlotConfig"
 
 class dNLSB4TDP43andWTSubsetConfig(BasicSubsetConfig):
     def __init__(self):
-
         config = EmbeddingsdNLSB4DatasetConfig()
-
         super().__init__(config)
 
         # the mutual attribute to be fixed when comparing
-        self.MUTUAL_ATTR:str = "CELL_LINES"
+        self.MUTUAL_ATTR: str = "CELL_LINES"
+        self.CELL_LINES: list = ["TDP43", "WT"]
 
-        self.MUTUAL_ATTR_VAL:str = ["TDP43", "WT"]
-
-        self.MARKERS:List[str] = ["TDP43B", "DCP1A"]
+        self.MARKERS: List[str] = ["TDP43B", "DCP1A"]
 
         # the attrubute the pair-wise distance comparison is calculated on
-        self.COMPARE_BY_ATTR:str = "CONDITIONS"
+        self.COMPARE_BY_ATTR: str = "CONDITIONS"
+        self.CONDITIONS: list = ["dox", "Untreated"]
 
-        self.COMPARE_BY_ATTR_LIST:list = ["dox", "Untreated"]
+        # the names for the comparison. should be a list of 2.
+        self.UMAP_PLOT_CONFIG: str = "UMAP0dNLSPlotConfig"
 
-        self.UMAP_PLOT_CONFIG:str = "UMAP0dNLSPlotConfig"
 
 

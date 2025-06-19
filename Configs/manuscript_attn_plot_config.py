@@ -3,7 +3,7 @@ import sys
 sys.path.insert(0, os.getenv("HOME"))
 sys.path.insert(1, os.getenv("NOVA_HOME"))
 
-from NOVA_rotation.Configs.attn_map_config import PlotAttnMapConfig
+from NOVA_rotation.Configs.plot_attn_map_config import PlotAttnMapConfig
 import cv2
 import numpy as np
 from PIL import Image
@@ -12,7 +12,6 @@ class BaseAttnMapPlotConfig(PlotAttnMapConfig):
     def __init__(self):
         super().__init__()
 
-        self.FILTER_BY_PAIRS:bool = True # Filter attention maps bu the pairs subset before plotting
 
         # Controls transparency of the attention overlay (higher alpha = more visible red)
         self.ALPHA:float = 0.4
@@ -39,17 +38,6 @@ class BaseAttnMapPlotConfig(PlotAttnMapConfig):
         self.SHOW_PLOT:bool = False
 
         self.SAMPLES_PATH:bool = None
-
-        # attention method 
-        self.ATTN_METHOD:str = "rollout" #["rollout","all_layers"]
-
-        self.RESAMPLE_METHOD:int = Image.BICUBIC 
-
-        self.REDUCE_HEAD_FUNC:str = "mean"
-
-        self.MIN_ATTN_THRESHOLD:float = 0.25
-
-        self.CORR_METHOD:str = "pearsonr" #options: ["pearsonr", "mutual_info", "ssim", "attn_overlap"]
 
         self.PLOT_CORR_SUMMARY:bool = True
 
