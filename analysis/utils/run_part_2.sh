@@ -11,10 +11,12 @@ CURR_MODEL="$MODEL_DIR/$MODEL_NAME"
 
 # Set configs paths
 CONFIG_DIR="./NOVA_rotation/Configs"
+EMBEDDING_CONFIG_MODULE="reps_dataset_config"
+EMBEDDING_CONFIG_PATH="${CONFIG_DIR}/${EMBEDDING_CONFIG_MODULE}.py"
 SUBSET_CONFIG_MODULE="manuscript_subset_config" 
 SUBSET_CONFIG_PATH="${CONFIG_DIR}/${SUBSET_CONFIG_MODULE}.py"
 ATTN_PLOT_PATH="${CONFIG_DIR}/manuscript_attn_plot_config/BaseAttnMapPlotConfig"
-
+ATTN_CONFIG_PATH="${CONFIG_DIR}/manuscript_attn_map_config/BaseAttnConfig"
 
 # ========================
 # 1. Activate base conda env
@@ -30,6 +32,30 @@ wait $pid
 
 # ========================
 # 2. Generate attention maps
+# ========================
+# Get class names from the Python file
+CLASS_NAMES=$(grep -E '^class ' "$EMBEDDING_CONFIG_PATH" | \
+              sed -E 's/^class ([A-Za-z0-9_]+)\(.*$/\1/')
+pid=$!
+wait $pid
+
+
+# Loop through each class and run the commands
+for class_name in $CLASS_NAMES; do
+    CONFIG_REF="${CONFIG_DIR}/${EMBEDDING_CONFIG_MODULE}/${class_name}"
+
+    echo "------------------------------------------------------------------"
+    echo "Creating attention maps for class: $class_name"
+    python ./NOVA_rotation/attention_maps/attention_maps_utils/generate_attention_maps.py $CURR_MODEL $CONFIG_REF $ATTN_CONFIG_PATH
+    pid=$!
+    wait $pid
+    echo "Finished attention maps for class: $class_name"
+
+done
+
+
+# ========================
+# 3. Plot attention maps
 # ========================
 echo "Generating attention maps..."
 
@@ -49,7 +75,7 @@ for class_name in $CLASS_NAMES; do
     echo "------------------------------------------------------------------"
     echo "Generating attention maps for config class: $class_name"
 
-    python ./NOVA_rotation/attention_maps/attention_maps_utils/generate_attention_maps.py $CURR_MODEL $CONFIG_REF $ATTN_PLOT_PATH
+    python ./NOVA_rotation/attention_maps/attention_maps_utils/plot_attention_maps.py $CURR_MODEL $CONFIG_REF $ATTN_CONFIG_PATH $ATTN_PLOT_PATH
 
     pid=$!
     wait $pid
@@ -61,7 +87,7 @@ pid=$!
 wait $pid
 
 # ========================
-# 3. Create PDF summaries
+# 4. Create PDF summaries
 # ========================
 
 # Switch conda env to generate PDFs
@@ -79,7 +105,7 @@ for class_name in $CLASS_NAMES; do
 
     echo "------------------------------------------------------------------"
     echo "Generating PDF for: $class_name"
-    python ./NOVA_rotation/analysis/pdf_summary.py "$class_name" "attn_map" "$MODEL_NAME"
+    python ./NOVA_rotation/analysis/utils/pdf_summary.py "$class_name" "attn_map" "$MODEL_NAME"
     pid=$!
     wait $pid
     echo "Finished PDF for: $class_name"

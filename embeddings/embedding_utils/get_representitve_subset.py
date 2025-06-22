@@ -232,11 +232,10 @@ def extract_subset(marker_labels:pd.DataFrame, marker_embeddings:pd.DataFrame, m
                 # extract data from config 
                 metric:str = data_config.METRIC
                 mutual_attr:str = data_config.MUTUAL_ATTR
-                mutual_param_c1, mutual_param_c2 = _extract_mutual_params(data_config.MUTUAL_ATTR_VAL)
                 compare_by_attr:str = data_config.COMPARE_BY_ATTR
-                compare_by_attr_list:list = data_config.COMPARE_BY_ATTR_LIST
-                compare_param_c1 = compare_by_attr_list[0]
-                compare_param_c2 = compare_by_attr_list[1]
+                mutual_param_c1, mutual_param_c2 = _extract_mutual_params(getattr(data_config ,data_config.MUTUAL_ATTR))
+                compare_param_c1 = getattr(data_config, data_config.COMPARE_BY_ATTR)[0]
+                compare_param_c2 = getattr(data_config, data_config.COMPARE_BY_ATTR)[1]
 
                 filtered_labels_c1, filtered_embeddings_c1, filtered_paths_c1  = filter_by_labels(marker_labels, marker_embeddings, marker_paths, {mutual_attr.lower():mutual_param_c1, compare_by_attr.lower():compare_param_c1})
                 filtered_labels_c2, filtered_embeddings_c2, filtered_paths_c2 = filter_by_labels(marker_labels, marker_embeddings, marker_paths, {mutual_attr.lower():mutual_param_c2, compare_by_attr.lower():compare_param_c2})

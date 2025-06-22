@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 import os
 
 def corr_pearsonr(m1, m2):
+    """
+    calcaultes person r correlation score betweeb the 2 flattened matrices 
+    """
     from scipy.stats import pearsonr
     v1 = m1.flatten()
     v2 = m2.flatten()
@@ -18,7 +21,8 @@ def corr_mutual_info(m1, m2, bins=32):
 
 def corr_ssim(m1, m2):
     """
-    assumes m1 and m2 are normalized 
+    assumes m1 and m2 are normalized.
+    Calculates structural similarity index measure between the 2 matrices.
     """
     from skimage.metrics import structural_similarity as ssim
     score, ssim_map = ssim(m1, m2, full=True)
@@ -26,6 +30,12 @@ def corr_ssim(m1, m2):
     return score
 
 def corr_attn_overlap(m1, m2, m2_binary_perc = 0.9):
+    """
+        for attention maps:
+            sums the values of attention (m1) only in the masked area of the input (m2).
+                --> "segment" to get only the most important pixels of the input images and calculate
+                    the average attention value in those areas.  
+    """
     # Use top X% of m2 (img) as binary mask
     threshold = np.quantile(m2, m2_binary_perc)
     m2_mask = m2 >= threshold

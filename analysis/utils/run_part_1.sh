@@ -48,7 +48,7 @@ wait $pid
 # ========================
 echo "Generating embeddings..."
 
-# Get class names from the Python file, excluding BasicSubsetConfig
+# Get class names from the Python file
 CLASS_NAMES=$(grep -E '^class ' "$EMBEDDING_CONFIG_PATH" | \
               sed -E 's/^class ([A-Za-z0-9_]+)\(.*$/\1/')
 pid=$!

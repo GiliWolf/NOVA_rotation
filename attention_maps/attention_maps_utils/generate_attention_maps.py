@@ -23,6 +23,13 @@ from NOVA_rotation.attention_maps.attention_maps_utils.generate_attn_utils impor
 
 
 def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str, config_path_attn:str, batch_size:int=700)->None:
+    """
+        For each sample the data config - 
+            - extracts the attention maps from the model 
+            - saves the raw attention maps
+            - process the attention maps according to the parameter in the attn config
+            - saves the processed attn maps
+    """
     config_data:DatasetConfig = load_config_file(config_path_data, "data")
     config_attn:AttnConfig = load_config_file(config_path_attn, "data")
     config_data.OUTPUTS_FOLDER = outputs_folder_path

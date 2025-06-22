@@ -54,10 +54,9 @@ resample_methods = {
 
 
 def get_title(data_config):
-    mutual_param_c1, mutual_param_c2 = _extract_mutual_params(data_config.MUTUAL_ATTR_VAL)
-    compare_by_attr_list:list = data_config.COMPARE_BY_ATTR_LIST
-    compare_param_c1 = compare_by_attr_list[0]
-    compare_param_c2 = compare_by_attr_list[1]
+    mutual_param_c1, mutual_param_c2 = _extract_mutual_params(getattr(data_config ,data_config.MUTUAL_ATTR))
+    compare_param_c1 = getattr(data_config, data_config.COMPARE_BY_ATTR)[0]
+    compare_param_c2 = getattr(data_config, data_config.COMPARE_BY_ATTR)[1]
 
 
     title = f"{mutual_param_c1.upper()}: {compare_param_c1.upper()} VS {mutual_param_c2.upper()}: {compare_param_c2.upper()}"
@@ -159,13 +158,13 @@ def set_adjacent_images(pdf, path1, path2, title1, title2, img_width = 95, img_h
 
 
 
-def attn_map_pdf(input_folder_path, subset_folder_path ,data_config, plot_config, title, subset_config_name, num_examples = 1, output_folder_path = "."):
+def attn_map_pdf(input_folder_path, subset_folder_path ,data_config, attn_config, title, subset_config_name, num_examples = 1, output_folder_path = "."):
 
-    ATTN_METHOD:str = plot_config.ATTN_METHOD
-    REDUCE_HEAD_FUNC:str = plot_config.REDUCE_HEAD_FUNC
-    MIN_ATTN_THRESHOLD:float = plot_config.MIN_ATTN_THRESHOLD
-    CORR_METHOD:str = plot_config.CORR_METHOD
-    RESAMPLE_METHOD:int = resample_methods[plot_config.RESAMPLE_METHOD]
+    ATTN_METHOD:str = attn_config.ATTN_METHOD
+    REDUCE_HEAD_FUNC:str = attn_config.REDUCE_HEAD_FUNC
+    MIN_ATTN_THRESHOLD:float = attn_config.MIN_ATTN_THRESHOLD
+    CORR_METHOD:str = attn_config.CORR_METHOD
+    RESAMPLE_METHOD:int = resample_methods[attn_config.RESAMPLE_METHOD]
 
     if data_config.SPLIT_DATA:
         data_set_types = ['trainset','valset','testset']
@@ -281,7 +280,7 @@ def extract_pairs(pair_type:str, dist_df:pd.DataFrame, num_examples =1):
     return pair_list
 
 
-def main(subset_config_name, pdf_type, model_name, attn_config_name = "BaseAttnMapPlotConfig"):
+def main(subset_config_name, pdf_type, model_name, attn_config_name = "BaseAttnConfig"):
 
     # path control
     emb_folder_path = f"./NOVA_rotation/embeddings/embedding_output/{model_name}"
@@ -292,9 +291,9 @@ def main(subset_config_name, pdf_type, model_name, attn_config_name = "BaseAttnM
 
     # load configs
     config_path_subset = os.path.join("./NOVA_rotation/Configs/manuscript_subset_config", subset_config_name)
-    config_path_plot = os.path.join("./NOVA_rotation/Configs/manuscript_attn_plot_config", attn_config_name)
+    config_path_plot = os.path.join("./NOVA_rotation/Configs/manuscript_attn_map_config", attn_config_name)
     data_config:SubsetConfig = load_config_file(config_path_subset, "data")
-    plot_config:PlotAttnMapConfig = load_config_file(config_path_plot, "plot")
+    attn_config:AttnConfig = load_config_file(config_path_plot, "data")
 
     # run
     title = get_title(data_config)
@@ -303,7 +302,7 @@ def main(subset_config_name, pdf_type, model_name, attn_config_name = "BaseAttnM
         subet_pdf(emb_folder_path, umap_folder_path, data_config, title, subset_config_name, output_folder_path)
         print("created subet_pdf.")
     elif pdf_type == "attn_map":
-        attn_map_pdf(attn_folder_path, emb_folder_path, data_config, plot_config, title, subset_config_name, num_examples = 3, output_folder_path = output_folder_path)
+        attn_map_pdf(attn_folder_path, emb_folder_path, data_config, attn_config, title, subset_config_name, num_examples = 3, output_folder_path = output_folder_path)
         print("created attn_map_pdf.")
     else:
         print(f"[PDF summary: pdf_type <{pdf_type}> is not supported.")
