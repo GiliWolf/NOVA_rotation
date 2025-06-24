@@ -29,7 +29,7 @@ def corr_ssim(m1, m2):
 
     return score
 
-def corr_attn_overlap(m1, m2, m2_binary_perc = 0.9):
+def corr_attn_overlap(m1, m2, m2_binary_perc = 0.7):
     """
         for attention maps:
             sums the values of attention (m1) only in the masked area of the input (m2).

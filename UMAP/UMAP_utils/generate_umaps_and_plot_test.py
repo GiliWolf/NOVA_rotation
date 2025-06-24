@@ -17,8 +17,7 @@ from src.analysis.analyzer_umap_multiple_markers import AnalyzerUMAPMultipleMark
 from src.analysis.analyzer_umap_multiplex_markers import AnalyzerUMAPMultiplexMarkers
 from src.analysis.analyzer_umap import AnalyzerUMAP
 from NOVA_rotation.load_files.load_data_from_npy import load_npy_to_nparray
-from NOVA_rotation.attention_maps.attention_maps_utils.generate_attention_maps import __extract_indices_to_plot, __extract_samples_to_plot
-
+from NOVA_rotation.attention_maps.attention_maps_utils.generate_attn_utils import __extract_indices_to_plot, __extract_samples_to_plot
 # Mapping between umap_type and corresponding Analyzer classes and plotting functions
 analyzer_mapping = {
     0: (AnalyzerUMAPSingleMarkers, AnalyzerUMAP.UMAPType(0).name),

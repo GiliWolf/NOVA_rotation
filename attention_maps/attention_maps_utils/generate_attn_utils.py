@@ -167,7 +167,8 @@ def save_corr_data(corr_data:List[np.ndarray[torch.Tensor]],
                 logging.info(f'[save_corr_data] saved in {marker_save_path}')
 
 def plot_corr_data(corr_data:List[np.ndarray[torch.Tensor]], labels:List[np.ndarray[torch.Tensor]], 
-                    data_config:DatasetConfig, config_attn:AttnConfig, config_plot:PlotConfig, output_folder_path:str)->None:
+                    data_config:DatasetConfig, config_attn:AttnConfig, config_plot:PlotConfig, 
+                    output_folder_path:str, dirname:str = None)->None:
     """
         - extract correlation data for each batch 
         - saves the corr data and its summary plot to output_folder_path
@@ -200,6 +201,8 @@ def plot_corr_data(corr_data:List[np.ndarray[torch.Tensor]], labels:List[np.ndar
 
         for batch, batch_indexes in __dict_temp.items():
             batch_save_path = os.path.join(output_folder_path, data_config.EXPERIMENT_TYPE, batch)
+            if dirname:
+                batch_save_path = os.path.join(batch_save_path, dirname)
             logging.info(f"[plot_corr_data] Saving {len(batch_indexes)} in {batch_save_path}")
 
             #extract current batch samples
@@ -396,8 +399,130 @@ def _process_attn_map_all_layers(attn:np.ndarray[float], config_attn:AttnConfig)
     attn_maps_all_layers = np.stack(attn_maps_all_layers)
     return attn_maps_all_layers
 
+####
 
-def plot_attn_maps(processed_attn_maps: np.ndarray[float], labels: np.ndarray[str], 
+# def plot_attn_maps(processed_attn_maps: np.ndarray[float], labels: np.ndarray[str], 
+#                     paths: np.ndarray[str], data_config: DatasetConfig, config_attn: AttnConfig, 
+#                     config_plot: PlotConfig, output_folder_path: str):
+#     """
+#     for each sample in processed_attn_maps create and saves a figure of the input image, its attention map and overlay. 
+#     in the process it calculate ad return each samples correlation score between the attn map and the input image. 
+
+#     """
+
+#     os.makedirs(output_folder_path, exist_ok=True)
+#     img_shape = data_config.IMAGE_SIZE # suppose to be square (100, 100)
+
+#     unique_batches = get_unique_parts_from_labels(labels[0], get_batches_from_labels, data_config)
+#     logging.info(f'[save_attn_maps] unique_batches: {unique_batches}')
+
+#     if data_config.SPLIT_DATA:
+#         data_set_types = ['trainset','valset','testset']
+#     else:
+#         data_set_types = ['testset']
+    
+#     all_corr_data = []
+#     for i, set_type in enumerate(data_set_types):
+#         cur_attn_maps, cur_labels, cur_paths = processed_attn_maps[i], labels[i], paths[i]
+#         batch_of_label = get_batches_from_labels(cur_labels, data_config)
+#         __dict_temp = {batch: np.where(batch_of_label==batch)[0] for batch in unique_batches}
+
+#         img_path_df = parse_paths(cur_paths)
+#         logging.info(f'[plot_attn_maps]: for set {set_type}, starting plotting {len(cur_paths)} samples.')
+        
+#         set_corr_data = []
+#         for batch, batch_indexes in __dict_temp.items():
+#             batch_save_path = os.path.join(output_folder_path, data_config.EXPERIMENT_TYPE, batch)
+#             logging.info(f"[plot_attn_maps] Saving {len(batch_indexes)} in {batch_save_path}")
+
+#             #extract current batch samples
+#             batch_attn_maps = cur_attn_maps[batch_indexes]
+#             batch_labels = cur_labels[batch_indexes]
+#             batch_paths = cur_paths[batch_indexes]
+
+#             for index, (sample_attn, label, img_path) in enumerate(zip(batch_attn_maps, batch_labels, batch_paths)):
+#                 # load img details
+#                 path_item = img_path_df.iloc[index]
+#                 img_path, tile, site = Parse_Path_Item(path_item)
+
+#                 # plot
+#                 marker = str(get_markers_from_labels(label))
+#                 temp_output_folder_path = os.path.join(batch_save_path, marker, set_type, os.path.basename(img_path).split('.npy')[0])
+#                 os.makedirs(temp_output_folder_path, exist_ok=True)
+#                 corr_data = __plot_attn(sample_attn, (img_path, site, tile, label), img_shape, config_attn, config_plot, temp_output_folder_path)
+#                 set_corr_data.append(corr_data)
+        
+#         # end of set type
+#         set_corr_data = np.stack(set_corr_data)
+#         all_corr_data.append(set_corr_data)
+
+#     # end of samples
+#     return all_corr_data
+
+# def __plot_attn(proccessed_sample_attn: np.ndarray[float], sample_info:tuple, img_shape:tuple, config_attn, config_plot, output_folder_path:str):
+#     """
+#         calculate correlation data and create figure with the attention map, input image and correlation dta. 
+#     """
+#     num_patches = proccessed_sample_attn.shape[-1]
+#     patch_dim = int(np.sqrt(num_patches))
+
+#     logging.info(f"[plot_attn_maps] {num_patches} patches, {img_shape} img_shape")
+#     attn_method = config_attn.ATTN_METHOD
+#     corr_data = globals()[f"_plot_attn_map_{attn_method}"](proccessed_sample_attn, sample_info, patch_dim, img_shape, config_attn, config_plot, output_folder_path)
+#     corr_data = globals()[f"parse_corr_data_{attn_method}"](corr_data)
+#     return corr_data
+
+# def _plot_attn_map_all_layers(processed_attn_map, sample_info, patch_dim, img_shape, config_attn, config_plot, output_folder_path):
+#     # Sample Info
+#     img_path, site, tile, label = sample_info
+#     marker, nucleus, input_img = load_tile(img_path, tile)
+#     assert marker.shape == nucleus.shape == img_shape
+#     logging.info(f"[plot_attn_maps] Sample Info: img_path:{img_path}, site:{site}, tile:{tile}, label:{label}")
+
+#     # Attn workflow
+#     num_layers, _, _= attn.shape #(num_layers, num_patches, num_patches)
+#     corr_data_all_layers = []
+#     heatmap_colored_all_layers = []
+#     for layer_idx in range(num_layers):
+#         layer_attn = processed_attn_map[layer_idx]
+#         # create attn map heatmap
+#         heatmap_colored = __color_heatmap_attn_map(layer_attn, patch_dim, img_shape, heatmap_color=config_plot.PLOT_HEATMAP_COLORMAP, resample_method=config_attn.RESAMPLE_METHOD)
+        
+#         # calculate corraletion
+#         layer_attn =__resize_attn_map(layer_attn)
+#         corr_data = compute_corr_data(layer_attn, [nucleus, marker], corr_method = config_attn.CORR_METHOD)
+#         corr_data_all_layers.append(corr_data)
+#         heatmap_colored_all_layers.append(heatmap_colored)
+
+#         # plot for each layer seperatly if specified
+#         if config_plot.SAVE_SEPERATE_LAYERS:
+#             __create_attn_map_img(layer_attn, input_img, heatmap_colored,config_plot, corr_data, corr_method = config_attn.CORR_METHOD, sup_title =f"Tile{tile}_Layer{layer_idx}\n{label}",  output_folder_path=output_folder_path)
+    
+#     # plot all layers in one figure
+#     __create_all_layers_attn_map_img(heatmap_colored_all_layers, input_img, config_plot, corr_data_all_layers, sup_title = f"Tile{tile}_All_Layers\n{label}", output_folder_path = output_folder_path)
+#     return corr_data_all_layers
+
+# def _plot_attn_map_rollout(processed_attn_map, sample_info, patch_dim, img_shape, config_attn, config_plot, output_folder_path):
+#     # Sample Info
+#     img_path, site, tile, label = sample_info
+#     marker, nucleus, input_img = load_tile(img_path, tile)
+#     assert marker.shape == nucleus.shape == img_shape
+#     logging.info(f"[plot_attn_maps] Sample Info: img_path:{img_path}, site:{site}, tile:{tile}, label:{label}")
+
+#     # Attn workflow
+#     # create attn map heatmap
+#     heatmap_colored = __color_heatmap_attn_map(processed_attn_map, patch_dim, img_shape, heatmap_color=config_plot.PLOT_HEATMAP_COLORMAP, resample_method=config_attn.RESAMPLE_METHOD)
+#     # calculate corraletion
+#     processed_attn_map =__resize_attn_map(processed_attn_map, patch_dim, img_shape, resample_method=config_attn.RESAMPLE_METHOD)
+#     corr_data = compute_corr_data(processed_attn_map, [nucleus, marker], corr_method = config_attn.CORR_METHOD)
+#     # create figure
+#     __create_attn_map_img(processed_attn_map, input_img, heatmap_colored, config_plot, corr_data, corr_method = config_attn.CORR_METHOD, sup_title= f"Tile{tile}\nRollout\n{label}", output_folder_path= output_folder_path)
+#     return corr_data
+
+####
+  
+# -------------
+def plot_attn_maps(processed_attn_maps: np.ndarray[float], corr_data, labels: np.ndarray[str], 
                     paths: np.ndarray[str], data_config: DatasetConfig, config_attn: AttnConfig, 
                     config_plot: PlotConfig, output_folder_path: str):
     """
@@ -410,7 +535,7 @@ def plot_attn_maps(processed_attn_maps: np.ndarray[float], labels: np.ndarray[st
     img_shape = data_config.IMAGE_SIZE # suppose to be square (100, 100)
 
     unique_batches = get_unique_parts_from_labels(labels[0], get_batches_from_labels, data_config)
-    logging.info(f'[save_attn_maps] unique_batches: {unique_batches}')
+    logging.info(f'[plot_attn_maps] unique_batches: {unique_batches}')
 
     if data_config.SPLIT_DATA:
         data_set_types = ['trainset','valset','testset']
@@ -419,7 +544,7 @@ def plot_attn_maps(processed_attn_maps: np.ndarray[float], labels: np.ndarray[st
     
     all_corr_data = []
     for i, set_type in enumerate(data_set_types):
-        cur_attn_maps, cur_labels, cur_paths = processed_attn_maps[i], labels[i], paths[i]
+        cur_attn_maps, cur_labels, cur_paths, cur_corr_data = processed_attn_maps[i], labels[i], paths[i], corr_data[i]
         batch_of_label = get_batches_from_labels(cur_labels, data_config)
         __dict_temp = {batch: np.where(batch_of_label==batch)[0] for batch in unique_batches}
 
@@ -435,8 +560,9 @@ def plot_attn_maps(processed_attn_maps: np.ndarray[float], labels: np.ndarray[st
             batch_attn_maps = cur_attn_maps[batch_indexes]
             batch_labels = cur_labels[batch_indexes]
             batch_paths = cur_paths[batch_indexes]
+            batch_corr_data = cur_corr_data[batch_indexes]
 
-            for index, (sample_attn, label, img_path) in enumerate(zip(batch_attn_maps, batch_labels, batch_paths)):
+            for index, (sample_attn, label, img_path, corr) in enumerate(zip(batch_attn_maps, batch_labels, batch_paths, batch_corr_data)):
                 # load img details
                 path_item = img_path_df.iloc[index]
                 img_path, tile, site = Parse_Path_Item(path_item)
@@ -445,17 +571,10 @@ def plot_attn_maps(processed_attn_maps: np.ndarray[float], labels: np.ndarray[st
                 marker = str(get_markers_from_labels(label))
                 temp_output_folder_path = os.path.join(batch_save_path, marker, set_type, os.path.basename(img_path).split('.npy')[0])
                 os.makedirs(temp_output_folder_path, exist_ok=True)
-                corr_data = __plot_attn(sample_attn, (img_path, site, tile, label), img_shape, config_attn, config_plot, temp_output_folder_path)
-                set_corr_data.append(corr_data)
-        
-        # end of set type
-        set_corr_data = np.stack(set_corr_data)
-        all_corr_data.append(set_corr_data)
+                __plot_attn(sample_attn, corr, (img_path, site, tile, label), img_shape, config_attn, config_plot, temp_output_folder_path)
+    
 
-    # end of samples
-    return all_corr_data
-
-def __plot_attn(proccessed_sample_attn: np.ndarray[float], sample_info:tuple, img_shape:tuple, config_attn, config_plot, output_folder_path:str):
+def __plot_attn(proccessed_sample_attn: np.ndarray[float], corr, sample_info:tuple, img_shape:tuple, config_attn, config_plot, output_folder_path:str):
     """
         calculate correlation data and create figure with the attention map, input image and correlation dta. 
     """
@@ -464,11 +583,11 @@ def __plot_attn(proccessed_sample_attn: np.ndarray[float], sample_info:tuple, im
 
     logging.info(f"[plot_attn_maps] {num_patches} patches, {img_shape} img_shape")
     attn_method = config_attn.ATTN_METHOD
-    corr_data = globals()[f"_plot_attn_map_{attn_method}"](proccessed_sample_attn, sample_info, patch_dim, img_shape, config_attn, config_plot, output_folder_path)
-    corr_data = globals()[f"parse_corr_data_{attn_method}"](corr_data)
-    return corr_data
+    globals()[f"_plot_attn_map_{attn_method}"](proccessed_sample_attn, corr, sample_info, patch_dim, img_shape, config_attn, config_plot, output_folder_path)
 
-def _plot_attn_map_all_layers(processed_attn_map, sample_info, patch_dim, img_shape, config_attn, config_plot, output_folder_path):
+
+
+def _plot_attn_map_all_layers(processed_attn_map, corr, sample_info, patch_dim, img_shape, config_attn, config_plot, output_folder_path):
     # Sample Info
     img_path, site, tile, label = sample_info
     marker, nucleus, input_img = load_tile(img_path, tile)
@@ -477,28 +596,24 @@ def _plot_attn_map_all_layers(processed_attn_map, sample_info, patch_dim, img_sh
 
     # Attn workflow
     num_layers, _, _= attn.shape #(num_layers, num_patches, num_patches)
-    corr_data_all_layers = []
     heatmap_colored_all_layers = []
     for layer_idx in range(num_layers):
         layer_attn = processed_attn_map[layer_idx]
+        layer_corr = corr[layer_idx]
         # create attn map heatmap
         heatmap_colored = __color_heatmap_attn_map(layer_attn, patch_dim, img_shape, heatmap_color=config_plot.PLOT_HEATMAP_COLORMAP, resample_method=config_attn.RESAMPLE_METHOD)
-        
-        # calculate corraletion
-        layer_attn =__resize_attn_map(layer_attn)
-        corr_data = compute_corr_data(layer_attn, [nucleus, marker], corr_method = config_attn.CORR_METHOD)
-        corr_data_all_layers.append(corr_data)
         heatmap_colored_all_layers.append(heatmap_colored)
 
         # plot for each layer seperatly if specified
         if config_plot.SAVE_SEPERATE_LAYERS:
-            __create_attn_map_img(layer_attn, input_img, heatmap_colored,config_plot, corr_data, corr_method = config_attn.CORR_METHOD, sup_title =f"Tile{tile}_Layer{layer_idx}\n{label}",  output_folder_path=output_folder_path)
+            layer_attn =__resize_attn_map(layer_attn, patch_dim, img_shape, resample_method=config_attn.RESAMPLE_METHOD)
+            __create_attn_map_img(layer_attn, input_img, heatmap_colored,config_plot, layer_corr, corr_method = config_attn.CORR_METHOD, sup_title =f"Tile{tile}_Layer{layer_idx}\n{label}",  output_folder_path=output_folder_path)
     
     # plot all layers in one figure
-    __create_all_layers_attn_map_img(heatmap_colored_all_layers, input_img, config_plot, corr_data_all_layers, sup_title = f"Tile{tile}_All_Layers\n{label}", output_folder_path = output_folder_path)
-    return corr_data_all_layers
+    __create_all_layers_attn_map_img(heatmap_colored_all_layers, input_img, config_plot, corr, sup_title = f"Tile{tile}_All_Layers\n{label}", output_folder_path = output_folder_path)
 
-def _plot_attn_map_rollout(processed_attn_map, sample_info, patch_dim, img_shape, config_attn, config_plot, output_folder_path):
+
+def _plot_attn_map_rollout(processed_attn_map, corr, sample_info, patch_dim, img_shape, config_attn, config_plot, output_folder_path):
     # Sample Info
     img_path, site, tile, label = sample_info
     marker, nucleus, input_img = load_tile(img_path, tile)
@@ -508,13 +623,13 @@ def _plot_attn_map_rollout(processed_attn_map, sample_info, patch_dim, img_shape
     # Attn workflow
     # create attn map heatmap
     heatmap_colored = __color_heatmap_attn_map(processed_attn_map, patch_dim, img_shape, heatmap_color=config_plot.PLOT_HEATMAP_COLORMAP, resample_method=config_attn.RESAMPLE_METHOD)
-    # calculate corraletion
-    processed_attn_map =__resize_attn_map(processed_attn_map, patch_dim, img_shape, resample_method=config_attn.RESAMPLE_METHOD)
-    corr_data = compute_corr_data(processed_attn_map, [nucleus, marker], corr_method = config_attn.CORR_METHOD)
+    
     # create figure
-    __create_attn_map_img(processed_attn_map, input_img, heatmap_colored, config_plot, corr_data, corr_method = config_attn.CORR_METHOD, sup_title= f"Tile{tile}\nRollout\n{label}", output_folder_path= output_folder_path)
-    return corr_data
+    processed_attn_map =__resize_attn_map(processed_attn_map, patch_dim, img_shape, resample_method=config_attn.RESAMPLE_METHOD)
+    __create_attn_map_img(processed_attn_map, input_img, heatmap_colored, config_plot, corr, corr_method = config_attn.CORR_METHOD, sup_title= f"Tile{tile}\nRollout\n{label}", output_folder_path= output_folder_path)
 
+
+# -------------
 
 def __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, corr_data = None, corr_method = None, sup_title = "Attention Maps", output_folder_path = None):
         """
@@ -544,8 +659,8 @@ def __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, cor
 
         fig, ax = plt.subplots(1, 3, figsize=config_plot.FIG_SIZE)
 
-        if corr_data:
-            corrs, entropy = corr_data
+        if corr_data is not None:
+            corrs, entropy = corr_data[:-1], corr_data[-1]
             corr_nucleus, corr_marker = corrs[0], corrs[1]
             ax[1].text(0.5, -0.25, f"{corr_method} Correlation (Nucleus): {corr_nucleus:.2f}\n{corr_method} Correlation (Marker): {corr_marker:.2f}\nEntropy: {entropy:.2f}",
                     transform=ax[1].transAxes, ha='center', va='center', fontsize=config_plot.PLOT_TITLE_FONTSIZE, color='black')
@@ -655,7 +770,6 @@ def _compute_attn_corr_all_layers(processed_attn_map, sample_info, patch_dim, im
     img_path, site, tile, label = sample_info
     marker, nucleus, input_img = load_tile(img_path, tile)
     assert marker.shape == nucleus.shape == img_shape
-    logging.info(f"[calc_attn_corr] Sample Info: img_path:{img_path}, site:{site}, tile:{tile}, label:{label}")
 
     # Attn workflow
     num_layers, _, _= attn.shape #(num_layers, num_patches, num_patches)
@@ -675,7 +789,6 @@ def _compute_attn_corr_rollout(processed_attn_map, sample_info, patch_dim, img_s
     img_path, site, tile, label = sample_info
     marker, nucleus, input_img = load_tile(img_path, tile)
     assert marker.shape == nucleus.shape == img_shape
-    logging.info(f"[calc_attn_corr] Sample Info: img_path:{img_path}, site:{site}, tile:{tile}, label:{label}")
 
     # calculate corraletion
     processed_attn_map =__resize_attn_map(processed_attn_map, patch_dim, img_shape, resample_method=config_attn.RESAMPLE_METHOD)
@@ -741,9 +854,8 @@ def __calc_attn_corr(proccessed_sample_attn: np.ndarray[float], sample_info:tupl
     num_patches = proccessed_sample_attn.shape[-1]
     patch_dim = int(np.sqrt(num_patches))
 
-    logging.info(f"[calc_attn_corr] {num_patches} patches, {img_shape} img_shape")
     attn_method = config_attn.ATTN_METHOD
-    corr_data = globals()[f" _compute_attn_corr_{attn_method}"](proccessed_sample_attn, sample_info, patch_dim, img_shape, config_attn)
+    corr_data = globals()[f"_compute_attn_corr_{attn_method}"](proccessed_sample_attn, sample_info, patch_dim, img_shape, config_attn)
     corr_data = globals()[f"parse_corr_data_{attn_method}"](corr_data)
     return corr_data
 
@@ -778,6 +890,7 @@ def __process_attn_map(attn, min_attn_threshold=None):
         if min_attn_threshold is not None:
             processed_attn[processed_attn < min_attn_threshold] = 0.0
 
+        
         return processed_attn.astype(np.float32)
 
 def __resize_attn_map(processed_attn, patch_dim, img_shape, resample_method=Image.BICUBIC):

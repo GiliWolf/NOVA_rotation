@@ -32,7 +32,7 @@ class EmbeddingsB9DatasetConfig(EmbeddingsConfig):
 
         ################################
         # Which markers to include
-        self.MARKERS:List[str]            =  ["G3BP1", "Phalloidin", "TDP43", "FUS", "ANXA11"]
+        self.MARKERS:List[str]            =  ["G3BP1", "Phalloidin", "TDP43", "FUS", "ANXA11", "FMRP"]
 
         # Cell lines to include
         self.CELL_LINES:List[str]         = ["WT", "TDP43", "FUSHomozygous", "FUSRevertant"]

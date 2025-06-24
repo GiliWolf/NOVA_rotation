@@ -41,7 +41,7 @@ class BaseAttnMapPlotConfig(PlotAttnMapConfig):
 
         self.PLOT_CORR_SUMMARY:bool = True
 
-        self.SAVE_CORR_SEPERATE_MARKERS:bool = True
+        self.SAVE_CORR_SEPERATE_MARKERS:bool = False
 
         self.SAVE_CORR_ALL_MARKERS:bool = True
         

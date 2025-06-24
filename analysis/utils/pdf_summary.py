@@ -183,7 +183,7 @@ def attn_map_pdf(input_folder_path, subset_folder_path ,data_config, attn_config
         for batch in batches_names:
             for marker in data_config.MARKERS:
                 fig_input_folder_path =os.path.join(input_folder_path, "figures", ATTN_METHOD,  data_config.EXPERIMENT_TYPE, batch, marker, set_type)
-                corr_input_folder_path =os.path.join(input_folder_path, "correlations", ATTN_METHOD,  CORR_METHOD ,data_config.EXPERIMENT_TYPE, batch, marker)
+                corr_input_folder_path =os.path.join(input_folder_path, "correlations", ATTN_METHOD,  CORR_METHOD ,data_config.EXPERIMENT_TYPE, batch, subset_config_name, marker)
                 temp_subset_folder_path = os.path.join(subset_folder_path, "pairs", data_config.METRIC, data_config.EXPERIMENT_TYPE, batch,subset_config_name, marker)
 
                 pdf = FPDF()
@@ -203,7 +203,7 @@ def attn_map_pdf(input_folder_path, subset_folder_path ,data_config, attn_config
                     f"-> Attention Method:  {ATTN_METHOD}\n"
                     f"-> Head reduction Function:   {REDUCE_HEAD_FUNC}\n"
                     f"-> Minimum Attention Threshold:   {MIN_ATTN_THRESHOLD}\n"
-                    f"-> Resampling Method: {RESAMPLE_METHOD}"
+                    f"-> Resampling Method: {RESAMPLE_METHOD}\n"
                     f"-> Correlation Method:    {CORR_METHOD}"
                 )
                 pdf.multi_cell(0, 10, txt=metadata)
@@ -280,7 +280,7 @@ def extract_pairs(pair_type:str, dist_df:pd.DataFrame, num_examples =1):
     return pair_list
 
 
-def main(subset_config_name, pdf_type, model_name, attn_config_name = "BaseAttnConfig"):
+def main(subset_config_name, pdf_type, model_name, attn_config_name = "BaseAttnConfig", num_examples = 7):
 
     # path control
     emb_folder_path = f"./NOVA_rotation/embeddings/embedding_output/{model_name}"
@@ -302,7 +302,7 @@ def main(subset_config_name, pdf_type, model_name, attn_config_name = "BaseAttnC
         subet_pdf(emb_folder_path, umap_folder_path, data_config, title, subset_config_name, output_folder_path)
         print("created subet_pdf.")
     elif pdf_type == "attn_map":
-        attn_map_pdf(attn_folder_path, emb_folder_path, data_config, attn_config, title, subset_config_name, num_examples = 3, output_folder_path = output_folder_path)
+        attn_map_pdf(attn_folder_path, emb_folder_path, data_config, attn_config, title, subset_config_name, num_examples = num_examples, output_folder_path = output_folder_path)
         print("created attn_map_pdf.")
     else:
         print(f"[PDF summary: pdf_type <{pdf_type}> is not supported.")

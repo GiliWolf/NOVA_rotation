@@ -20,7 +20,7 @@ class BaseAttnConfig(AttnConfig):
 
         self.REDUCE_HEAD_FUNC:str = "mean"
 
-        self.MIN_ATTN_THRESHOLD:float = 0.25
+        self.MIN_ATTN_THRESHOLD:float = 0.0
 
-        self.CORR_METHOD:str = "pearsonr" #options: ["pearsonr", "mutual_info", "ssim", "attn_overlap"]
+        self.CORR_METHOD:str = "attn_overlap" #options: ["pearsonr", "mutual_info", "ssim", "attn_overlap"]
 
