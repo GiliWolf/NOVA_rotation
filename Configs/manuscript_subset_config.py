@@ -24,6 +24,41 @@ class BasicSubsetConfig(SubsetConfig):
 
         self.WITHOUT_REPEAT:bool = True # don't allow repeated samples
 
+#-------------------------------------------------------------------
+
+# class WTB9SubsetConfigForPresentation(BasicSubsetConfig):
+#     def __init__(self):
+#         config = EmbeddingsB9DatasetConfigForPresentation()
+#         super().__init__(config)
+
+#         # the mutual attribute to be fixed when comparing
+#         self.MUTUAL_ATTR: str = "CELL_LINES"
+#         self.CELL_LINES: list = ["WT"]
+
+#         # the attrubute the pair-wise distance comparison is calculated on
+#         self.COMPARE_BY_ATTR: str = "CONDITIONS"
+#         self.CONDITIONS: list = ["stress", "Untreated"]
+
+#         # the names for the comparison. should be a list of 2.
+#         self.UMAP_PLOT_CONFIG: str = "UMAP0StressPlotConfig"
+
+# class dNLSB4TDP43SubsetConfigForPresentation(BasicSubsetConfig):
+#     def __init__(self):
+#         config = EmbeddingsdNLSB4DatasetConfigForPresentation()
+#         super().__init__(config)
+
+#         # the mutual attribute to be fixed when comparing
+#         self.MUTUAL_ATTR: str = "CELL_LINES"
+#         self.CELL_LINES: list = ["TDP43"]
+
+#         # the attrubute the pair-wise distance comparison is calculated on
+#         self.COMPARE_BY_ATTR: str = "CONDITIONS"
+#         self.CONDITIONS: list = ["dox", "Untreated"]
+
+#         # the names for the comparison. should be a list of 2.
+#         self.UMAP_PLOT_CONFIG: str = "UMAP0dNLSPlotConfig"
+
+#-------------------------------------------------------------------
 
 class WTB9SubsetConfig(BasicSubsetConfig):
     def __init__(self):
@@ -55,7 +90,7 @@ class FUSB9WTSubsetConfig(BasicSubsetConfig):
         self.MUTUAL_ATTR: str = "CONDITIONS"
         self.CONDITIONS: list = ["Untreated"]
 
-        self.MARKERS: List[str] = ["FUS"] # "ANXA11"
+        self.MARKERS: List[str] = ["FUS", "ANXA11"]
 
         # the attrubute the pair-wise distance comparison is calculated on
         self.COMPARE_BY_ATTR: str = "CELL_LINES"

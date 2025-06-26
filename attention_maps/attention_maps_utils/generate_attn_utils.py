@@ -674,15 +674,41 @@ def __create_attn_map_img(attn_map, input_img, heatmap_colored, config_plot, cor
         ax[1].imshow(cv2.cvtColor(heatmap_colored, cv2.COLOR_BGR2RGB))
         ax[1].set_axis_off()
 
+        fill_cmap = LinearSegmentedColormap.from_list(
+            'fill_colors',
+            [(0, 0, 0, 0),           # transparent black
+            (1, 1, 0, 0.4),         # yellow 
+            (1, 0.6, 0, 0.6),       # orange
+            (1, 0, 0, 0.8)]         # red
+        )
 
-        custom_cmap = LinearSegmentedColormap.from_list(
-            'attn_overlay_colors',
-            ['black', 'white', 'yellow', 'orange', 'red']
+        lines_cmap = LinearSegmentedColormap.from_list(
+            'line_colors',
+            [(1, 1, 1, 0.2),         # transparent white
+            (1, 1, 0, 0.4),         # yellow 
+            (1, 0.6, 0, 0.6),       # orange
+            (1, 0, 0, 0.8)]         # red
         )
 
         ax[2].set_title('Attention Overlay', fontsize=config_plot.PLOT_TITLE_FONTSIZE)
         ax[2].imshow(input_img)  # Show the original image
-        ax[2].imshow(attn_map, cmap=custom_cmap, alpha=alpha)  # Overlay attention map transparently
+
+        levels = np.linspace(0.2, 1.0, config_plot.NUM_CONTOURS) # skip 20% lowest values  
+        contours = ax[2].contourf(
+            attn_map,
+            levels=levels,
+            cmap=fill_cmap,
+            alpha=alpha,  
+        )
+
+        thick_contours = ax[2].contour(
+            attn_map,
+            levels=levels,              
+            cmap=lines_cmap,            
+            linewidths=1.0,             
+            alpha= alpha + 0.05
+        )
+
         ax[2].set_axis_off()
 
         fig.suptitle(sup_title, fontsize=config_plot.PLOT_SUPTITLE_FONTSIZE, y=1.1)

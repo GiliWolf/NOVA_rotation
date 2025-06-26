@@ -22,5 +22,5 @@ class BaseAttnConfig(AttnConfig):
 
         self.MIN_ATTN_THRESHOLD:float = 0.0
 
-        self.CORR_METHOD:str = "attn_overlap" #options: ["pearsonr", "mutual_info", "ssim", "attn_overlap"]
+        self.CORR_METHOD:str = "soft_overlap" #options: ["pearsonr", "mutual_info", "ssim", "attn_overlap", "soft_overlap"]
 

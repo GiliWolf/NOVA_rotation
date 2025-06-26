@@ -43,7 +43,7 @@ for MODEL_NAME in "${MODEL_NAMES[@]}"; do
     # # Get class names from the Python file
     # # CLASS_NAMES=$(grep -E '^class ' "$EMBEDDING_CONFIG_PATH" | \
     # #               sed -E 's/^class ([A-Za-z0-9_]+)\(.*$/\1/')
-    # CLASS_NAMES=$(grep -E '^class [A-Za-z0-9_]*ForPresentation\s*\(' "$EMBEDDING_CONFIG_PATH" | \
+    # CLASS_NAMES=$(grep -E '^class [A-Za-z0-9_]*\s*\(' "$EMBEDDING_CONFIG_PATH" | \
     #           sed -E 's/^class ([A-Za-z0-9_]+)\(.*$/\1/')
 
     
@@ -74,7 +74,7 @@ for MODEL_NAME in "${MODEL_NAMES[@]}"; do
     # CLASS_NAMES=$(grep -E '^class ' "$SUBSET_CONFIG_PATH" | \
     #             sed -E 's/^class ([A-Za-z0-9_]+)\(.*$/\1/' | \
     #             grep -v 'BasicSubsetConfig')
-    CLASS_NAMES=$(grep -E '^class [A-Za-z0-9_]*ForPresentation\s*\(' "$SUBSET_CONFIG_PATH" | \
+    CLASS_NAMES=$(grep -E '^class [A-Za-z0-9_]*\s*\(' "$SUBSET_CONFIG_PATH" | \
               sed -E 's/^class ([A-Za-z0-9_]+)\(.*$/\1/' | \
               grep -v 'BasicSubsetConfig')
     pid=$!

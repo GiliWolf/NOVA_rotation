@@ -41,7 +41,7 @@ def generate_attn_maps_with_model(outputs_folder_path:str, config_path_data:str,
 
     # outout path
     home_dir = os.path.join(os.getenv("HOME"),"NOVA_rotation")
-    outputs_folder_path = os.path.join(home_dir, "attention_maps/attention_maps_output", model_name)
+    outputs_folder_path = os.path.join(home_dir, "attention_maps/output_for_presentation", model_name)
 
     attn_maps, labels, paths = generate_attn_maps(model, config_data, batch_size=batch_size)#TODO: add option to load attention maps
     save_attn_maps(attn_maps, labels, paths, config_data, output_folder_path=os.path.join(outputs_folder_path, "raw"))

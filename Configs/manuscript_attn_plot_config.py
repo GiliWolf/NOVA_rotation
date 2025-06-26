@@ -14,7 +14,9 @@ class BaseAttnMapPlotConfig(PlotAttnMapConfig):
 
 
         # Controls transparency of the attention overlay (higher alpha = more visible red)
-        self.ALPHA:float = 0.4
+        self.ALPHA:float = 0.2
+
+        self.NUM_CONTOURS:float = 8
 
         # Controls layout size of the output figure.
         self.FIG_SIZE:tuple = (12, 4)
@@ -41,7 +43,7 @@ class BaseAttnMapPlotConfig(PlotAttnMapConfig):
 
         self.PLOT_CORR_SUMMARY:bool = True
 
-        self.SAVE_CORR_SEPERATE_MARKERS:bool = False
+        self.SAVE_CORR_SEPERATE_MARKERS:bool = True
 
         self.SAVE_CORR_ALL_MARKERS:bool = True
         

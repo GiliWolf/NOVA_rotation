@@ -44,6 +44,27 @@ def corr_attn_overlap(m1, m2, m2_binary_perc = 0.7):
     score = (m1[m2_mask].sum()) / m2_mask.sum() #normalize by the mask size
     return score
 
+def corr_soft_overlap(attn_map, img_ch):
+
+    # Element-wise product (overlap)
+    overlap = np.sum(attn_map * img_ch)
+
+    # Normalizations
+    total_attn = np.sum(attn_map)
+    total_marker = np.sum(img_ch)
+
+    # Avoid division by zero
+    precision_like = overlap / total_attn if total_attn > 0 else 0
+    recall_like = overlap / total_marker if total_marker > 0 else 0
+
+    # Harmonic mean (F1-like)
+    if precision_like + recall_like > 0:
+        f1_like = 2 * precision_like * recall_like / (precision_like + recall_like)
+    else:
+        f1_like = 0
+    
+    return f1_like
+
 def normalize(v1):
     denom = v1.max() - v1.min()
     if denom == 0:
@@ -52,6 +73,8 @@ def normalize(v1):
         return (v1 - v1.min()) / denom
 
 def compute_correlation(attn, img_ch, corrleation_method:str):
+    assert attn.shape == img_ch.shape
+
     # make sure both are normalized
     attn = normalize(attn) 
     img_ch = normalize(img_ch)

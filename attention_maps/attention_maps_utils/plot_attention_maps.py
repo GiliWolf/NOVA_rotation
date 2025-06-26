@@ -33,7 +33,7 @@ def load_and_plot_attn_maps(outputs_folder_path:str, config_path_data:str, confi
 
     # output path
     home_dir = os.path.join(os.getenv("HOME"),"NOVA_rotation")
-    outputs_folder_path = os.path.join(home_dir, "attention_maps/attention_maps_output", model_name)
+    outputs_folder_path = os.path.join(home_dir, "attention_maps/output_for_presentation", model_name)
 
     # load processed attn maps
     processed_attn_maps, labels, paths = load_embeddings(outputs_folder_path, config_data, emb_folder_name = "processed")
@@ -65,10 +65,6 @@ def load_and_plot_attn_maps(outputs_folder_path:str, config_path_data:str, confi
     # (!) TODO: decouple correlation data computation from plotting - provide corr data to plot attn map ?
     plot_attn_maps(processed_attn_maps, corr_data, labels, paths, config_data, config_attn, config_plot, output_folder_path=os.path.join(outputs_folder_path, "figures", config_attn.ATTN_METHOD))
 
-
-    # # save summary plots of the correlations
-    # if config_plot.PLOT_CORR_SUMMARY:
-    #     plot_corr_data(corr_data, labels, config_data, config_attn, config_plot, output_folder_path=os.path.join(outputs_folder_path, "correlations", config_attn.ATTN_METHOD, config_attn.CORR_METHOD))
 
 
 
